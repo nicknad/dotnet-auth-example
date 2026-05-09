@@ -1,0 +1,40 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>Nick</Authors>
+
+    <!-- Minimal necessary suppressions -->
+    <!-- XML docs required but many internal types don't need them -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+<!-- Globally exclude generated folders -->
+  <ItemGroup>
+    <Compile Remove="**\obj\**" />
+    <Compile Remove="**\bin\**" />
+  </ItemGroup>
+
+  <!-- Per-project exclusions -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Auth.Api'">
+    <Compile Remove="Migrations\**" />
+  </ItemGroup>
+
+  <!-- Analyzer packages -->
+  <ItemGroup>
+    <PackageReference Include="StyleCop.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SonarAnalyzer.CSharp">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

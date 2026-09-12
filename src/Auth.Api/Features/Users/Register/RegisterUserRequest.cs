@@ -15,8 +15,8 @@ public sealed record RegisterUserRequest(
     [Required][MaxLength(256)][EmailAddress] string Email,
     [Required][StrongPassword] string Password,
     [Required][property: Compare("Password")] string ConfirmPassword,
-    [MinLength(1)][MaxLength(100)] string FirstName,
-    [MinLength(1)][MaxLength(100)] string LastName,
+    [Required][MinLength(1)][MaxLength(100)] string FirstName,
+    [Required][MinLength(1)][MaxLength(100)] string LastName,
     IReadOnlyList<string>? Roles = null) {
-    public string Email { get; init; } = Email.Trim();
+    public string Email { get; init; } = Email?.Trim() ?? string.Empty;
 }

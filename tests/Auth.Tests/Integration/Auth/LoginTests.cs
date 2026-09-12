@@ -76,6 +76,25 @@ public sealed class LoginTests : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
+    public async Task LoginWithNullEmailReturnsBadRequest() {
+        using var request = new HttpRequestMessage(HttpMethod.Post, UriProvider.AuthUrl);
+        request.Content = JsonContent.Create(new { email = (string?)null, password = "Password123!" });
+        var response = await _client.SendAsync(request, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LoginWithDifferentEmailCaseSucceeds() {
+        var email = "casetest@test.com";
+        await TestHelpers.RegisterTestUserAsync(_client, email, "Case", "Test");
+
+        var response = await TestHelpers.LoginAsync(_client, "CaseTest@TEST.com", "Password123!");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task LoginWithTooLongEmailReturnsBadRequest() {
         var tooLongEmail = new string('a', 250) + "@test.com";
         var response = await TestHelpers.LoginAsync(_client, tooLongEmail, "Password123!");

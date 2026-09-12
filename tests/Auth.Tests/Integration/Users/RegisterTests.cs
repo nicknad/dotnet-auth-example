@@ -123,6 +123,46 @@ public sealed class RegisterTests : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
+    public async Task RegisterWithNullEmailReturnsBadRequest() {
+        using var request = new HttpRequestMessage(HttpMethod.Post, UriProvider.RegisterUrl);
+        request.Content = JsonContent.Create(new {
+            email = (string?)null,
+            password = "Password123!",
+            confirmPassword = "Password123!",
+            firstName = "Null",
+            lastName = "Email",
+        });
+        var response = await _client.SendAsync(request, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegisterWithNullNamesReturnsBadRequest() {
+        using var request = new HttpRequestMessage(HttpMethod.Post, UriProvider.RegisterUrl);
+        request.Content = JsonContent.Create(new {
+            email = "nullnames@test.com",
+            password = "Password123!",
+            confirmPassword = "Password123!",
+            firstName = (string?)null,
+            lastName = (string?)null,
+        });
+        var response = await _client.SendAsync(request, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RegisterWithUnknownRoleReturnsBadRequest() {
+        var adminToken = await TestHelpers.GetAdminTokenAsync(_client);
+        var roles = new List<string> { "SuperAdmin" };
+
+        var response = await TestHelpers.RegisterAsync(_client, "unknownrole@test.com", "Password123!", "Password123!", "Unknown", "Role", roles, adminToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task RegisterDeletedUserRevivesAccount() {
         var email = "revive@test.com";
         var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "First", "Last");

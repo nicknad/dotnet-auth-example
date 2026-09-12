@@ -292,7 +292,7 @@ internal static class ServiceCollectionExtensions
         {
             logger = new LoggerConfiguration()
                 .MinimumLevel.Information()
-                .WriteTo.File("../../Logs/auth-log.txt", rollingInterval: RollingInterval.Day)
+                .WriteTo.File("logs/auth-log.txt", rollingInterval: RollingInterval.Day)
                 .Enrich.FromLogContext()
                 .Enrich.WithProperty("Application", "Auth.Api")
                 .CreateLogger();

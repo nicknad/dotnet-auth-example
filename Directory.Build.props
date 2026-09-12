@@ -15,17 +15,6 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
-<!-- Globally exclude generated folders -->
-  <ItemGroup>
-    <Compile Remove="**\obj\**" />
-    <Compile Remove="**\bin\**" />
-  </ItemGroup>
-
-  <!-- Per-project exclusions -->
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Auth.Api'">
-    <Compile Remove="Migrations\**" />
-  </ItemGroup>
-
   <!-- Analyzer packages -->
   <ItemGroup>
     <PackageReference Include="StyleCop.Analyzers">

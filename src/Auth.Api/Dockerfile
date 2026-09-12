@@ -32,12 +32,12 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # Ensure the app user has permissions to write in /app (for SQLite)
-RUN chown -R app:app /app
+RUN mkdir -p /app/data && chown -R app:app /app
 
 USER app
 
 # Set environment variables for production
-ENV ASPNETCORE_ENVIRONMENT=Development
+ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:8080
 
 # Run the application

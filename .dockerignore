@@ -5,3 +5,11 @@
 **/README.md
 **/Dockerfile
 **/.dockerignore
+**/tests
+**/docs
+**/.github
+**/*.md
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/results

@@ -61,18 +61,22 @@ try
     bool seedDb = app.Configuration.GetValue<bool>("SeedDb") ||
                   app.Configuration.GetValue<bool>("seed-db");
 
-    #region seed database
+    #region database migration and seeding
+    if (!app.Environment.IsEnvironment("Testing")) {
+        using (var scope = app.Services.CreateScope()) {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+            await db.Database.MigrateAsync();
+            await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+        }
+    }
+
     if (seedDb)
     {
         try
         {
             using var scope = app.Services.CreateScope();
             var services = scope.ServiceProvider;
-            var db = services.GetRequiredService<ApplicationDbContext>();
-
-            if (!app.Environment.IsEnvironment("Testing")) {
-                await db.Database.MigrateAsync();
-            }
 
             await DatabaseUtil.SeedDatabase(services);
             Log.Information("Database seeded successfully.");
@@ -81,14 +85,6 @@ try
         {
             Log.Error(ex, "An error occurred while seeding the database.");
             throw;
-        }
-    }
-
-    if (!app.Environment.IsEnvironment("Testing")) {
-        using (var scope = app.Services.CreateScope()) {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
         }
     }
     #endregion

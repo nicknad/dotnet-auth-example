@@ -10,11 +10,12 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - SeedDb=true
-      - NoRateLimit=true
-      - Jwt__Key=uQw8v9Jk2nXy4zB7pLr6sVtYq3eHj5mN1cGf8aSd0wXb2QzT
-      - ConnectionStrings__DefaultConnection=Data Source=/app/auth-example.db
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Jwt__Key=${JWT_KEY:?Set JWT_KEY to a 32+ character secret before starting}
+      - Cors__AllowedOrigins=http://localhost:8080
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/auth-example.db
+    volumes:
+      - auth-data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -24,6 +25,9 @@ services:
     depends_on: []
     networks:
       - auth-network
+
+volumes:
+  auth-data:
 
 networks:
   auth-network:

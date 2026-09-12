@@ -1,6 +1,7 @@
 using Auth.Api.Abstractions;
 using Auth.Api.Common;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Security.Claims;
 
 namespace Auth.Api.Features.Auth.Logout;
@@ -16,7 +17,7 @@ internal static class LogoutEndpoint
     /// <param name="app">The endpoint route builder.</param>
     public static void MapLogout(this IEndpointRouteBuilder app) {
         app.MapPost("/auth/logout", async (
-            [FromBody] LogoutRequest request,
+            [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] LogoutRequest? request,
             ClaimsPrincipal user,
             [FromServices] ITokenHandler tokenHandler) =>
         {
@@ -27,7 +28,8 @@ internal static class LogoutEndpoint
                 return Results.Unauthorized();
             }
 
-            var result = await tokenHandler.LogoutAsync(userId, request.RevokeAllTokens).ConfigureAwait(false);
+            var revokeAllTokens = request?.RevokeAllTokens ?? false;
+            var result = await tokenHandler.LogoutAsync(userId, revokeAllTokens).ConfigureAwait(false);
 
             if (result.Succeeded) {
                 return Results.Ok(new { message = "Logged out successfully" });

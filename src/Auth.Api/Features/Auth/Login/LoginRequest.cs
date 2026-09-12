@@ -14,5 +14,5 @@ public sealed record LoginRequest(
 #pragma warning restore CA1515 // Consider making public types internal
     [Required][MinLength(1)][MaxLength(256)][EmailAddress] string Email,
     [Required][MinLength(1)][MaxLength(128)][NotOnlyWhitespace] string Password) {
-    public string Email { get; init; } = Email.Trim();
+    public string Email { get; init; } = Email?.Trim() ?? string.Empty;
 }

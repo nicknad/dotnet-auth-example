@@ -51,15 +51,30 @@ internal static class RegisterUserEndpoint
                 
                 // We need to reset password and roles
                 result = await userStorage.UpdateAsync(existingUser);
+
                 if (result.Succeeded) {
-                    await userStorage.UpdatePasswordAsync(existingUser, request.Password);
+                    result = await userStorage.UpdatePasswordAsync(existingUser, request.Password);
+                }
+
+                if (result.Succeeded) {
                     // Reset roles: remove all and add new
                     var currentRoles = await userStorage.GetRolesByUserAsync(existingUser);
                     foreach (var role in currentRoles) {
-                        await userStorage.RemoveRole(existingUser.Id, role);
+                        result = await userStorage.RemoveRole(existingUser.Id, role);
+
+                        if (!result.Succeeded) {
+                            break;
+                        }
                     }
+                }
+
+                if (result.Succeeded) {
                     foreach (var role in roles) {
-                        await userStorage.AddRole(existingUser.Id, role);
+                        result = await userStorage.AddRole(existingUser.Id, role);
+
+                        if (!result.Succeeded) {
+                            break;
+                        }
                     }
                 }
             } else {

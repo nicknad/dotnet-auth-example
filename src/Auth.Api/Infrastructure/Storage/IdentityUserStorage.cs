@@ -8,7 +8,7 @@ namespace Auth.Api.Infrastructure.Storage;
 // Implementation of User Storage using Microsoft Identity framework.
 // This class can be expanded in the future to include additional methods for user management if needed.
 // ApplicationUser is still used as the user entity, but we can easily switch to a different implementation.
-internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext) : IUserStorage
+internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext dbContext) : IUserStorage
 {
     public async Task<AuthApiResult> AddRole(string userId, string role) {
         var user = await userManager.FindByIdAsync(userId);
@@ -17,9 +17,13 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, App
             return AuthApiResult.Failed("User not found");
         }
 
-        await userManager.AddToRoleAsync(user, role);
+        if (!await roleManager.RoleExistsAsync(role)) {
+            return AuthApiResult.Failed($"Role '{role}' does not exist");
+        }
 
-        return AuthApiResult.Success;
+        var result = await userManager.AddToRoleAsync(user, role);
+
+        return result.Succeeded ? AuthApiResult.Success : AuthApiResult.Failed(result.Errors.Select(e => e.Description));
     }
 
     public Task<bool> CheckPasswordAsync(ApplicationUser user, string password) => userManager.CheckPasswordAsync(user, password);
@@ -27,6 +31,12 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, App
     public async Task<AuthApiResult> CreateAsync(ApplicationUser user, string password, List<string> roles) {
         if (roles is null || roles.Count == 0) {
             return AuthApiResult.Failed("At least one role must be assigned to the user");
+        }
+
+        foreach (var role in roles) {
+            if (!await roleManager.RoleExistsAsync(role)) {
+                return AuthApiResult.Failed($"Role '{role}' does not exist");
+            }
         }
 
         var result = await userManager.CreateAsync(user, password);
@@ -37,13 +47,20 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, App
 
         // Assign roles
         foreach (var role in roles) {
-            await userManager.AddToRoleAsync(user, role);
+            var roleResult = await userManager.AddToRoleAsync(user, role);
+
+            if (!roleResult.Succeeded) {
+                return AuthApiResult.Failed(roleResult.Errors.Select(e => e.Description));
+            }
         }
 
         return AuthApiResult.Success;
     }
 
-    public Task<ApplicationUser?> FindByEmailAsync(string email) => userManager.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email == email);
+    public Task<ApplicationUser?> FindByEmailAsync(string email) {
+        var normalizedEmail = userManager.NormalizeEmail(email);
+        return userManager.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+    }
     public Task<ApplicationUser?> FindByIdAsync(string userId) => userManager.FindByIdAsync(userId);
     public Task<ApplicationUser?> FindByRefreshTokenAsync(string refreshToken) => userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
     public async Task<AuthApiResult> DeleteAsync(string userId) {
@@ -99,9 +116,9 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, App
             return AuthApiResult.Failed("User not found");
         }
 
-        await userManager.RemoveFromRoleAsync(user, role);
+        var result = await userManager.RemoveFromRoleAsync(user, role);
 
-        return AuthApiResult.Success;
+        return result.Succeeded ? AuthApiResult.Success : AuthApiResult.Failed(result.Errors.Select(e => e.Description));
     }
 
     public Task<IList<string>> GetRolesByUserAsync(ApplicationUser user) {

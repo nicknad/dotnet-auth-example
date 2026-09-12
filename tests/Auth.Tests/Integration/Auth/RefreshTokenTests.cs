@@ -72,7 +72,7 @@ public sealed class RefreshTokenTests : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
-    public async Task RefreshTokenWithExpiredTokenReturnsUnauthorized() {
+    public async Task RefreshTokenWithRotatedTokenReturnsUnauthorized() {
         var email = "expiredtest@test.com";
         await TestHelpers.RegisterTestUserAsync(_client, email, "Expired", "Test");
         var refreshToken = await TestHelpers.GetRefreshTokenAsync(_client, email, "Password123!");

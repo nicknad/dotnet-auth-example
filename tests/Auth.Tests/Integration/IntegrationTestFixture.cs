@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 
@@ -19,6 +20,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 {
     public WebApplicationFactory<Program> Factory { get; private set; } = default!;
     public HttpClient HttpClient { get; private set; } = default!;
+    public TestTimeProvider TimeProvider { get; } = new();
 
     public async ValueTask InitializeAsync() {
         var dbId = Guid.NewGuid().ToString("N");
@@ -47,6 +49,9 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
                     services.AddDbContext<ApplicationDbContext>(options =>
                         options.UseInMemoryDatabase($"TestDb_{dbId}"));
+
+                    services.RemoveAll<TimeProvider>();
+                    services.AddSingleton<TimeProvider>(TimeProvider);
                 });
             });
 #pragma warning restore CA2000 // Dispose objects before losing scope

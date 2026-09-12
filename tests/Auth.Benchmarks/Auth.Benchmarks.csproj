@@ -7,7 +7,6 @@
     <RootNamespace>Auth.Benchmarks</RootNamespace>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <IsProjectFileSupported>false</IsProjectFileSupported>
   </PropertyGroup>
 
   <ItemGroup>

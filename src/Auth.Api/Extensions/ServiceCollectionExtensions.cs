@@ -1,5 +1,6 @@
 using Auth.Api.Abstractions;
 using Auth.Api.Common;
+using Auth.Api.Common.Token;
 using Auth.Api.Infrastructure.Services;
 using Auth.Api.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -134,27 +135,42 @@ internal static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(environment);
 
-        var jwtSettings = configuration.GetSection("Jwt");
+        var allowInsecureDefaults = environment.IsDevelopment() || environment.IsEnvironment("Testing");
+        var jwtSettings = configuration.GetSection(JwtOptions.SectionName);
+
         var keyString = jwtSettings["Key"];
         if (string.IsNullOrWhiteSpace(keyString))
         {
-            if (!environment.IsDevelopment() && !environment.IsEnvironment("Testing"))
+            if (!allowInsecureDefaults)
             {
                 throw new InvalidOperationException("Jwt:Key must be configured in non-development environments.");
             }
 
             Log.Warning("Jwt:Key is not configured. Falling back to an insecure development key. Do not use this in production.");
-            keyString = "dev-temporary-insecure-key-please-configure-this-in-production";
+            keyString = JwtOptions.DevelopmentKey;
         }
 
-        if (Encoding.UTF8.GetByteCount(keyString) < 32 && !environment.IsDevelopment() && !environment.IsEnvironment("Testing"))
+        if (Encoding.UTF8.GetByteCount(keyString) < 32 && !allowInsecureDefaults)
         {
             throw new InvalidOperationException("Jwt:Key must be at least 32 bytes long for production environments.");
         }
 
-        var key = Encoding.UTF8.GetBytes(keyString);
         var issuer = jwtSettings["Issuer"];
         var audience = jwtSettings["Audience"];
+
+        if ((string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience)) && !allowInsecureDefaults)
+        {
+            throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured in non-development environments.");
+        }
+
+        services.Configure<JwtOptions>(options =>
+        {
+            options.Key = keyString;
+            options.Issuer = issuer;
+            options.Audience = audience;
+        });
+
+        var key = Encoding.UTF8.GetBytes(keyString);
         var validateIssuer = !string.IsNullOrWhiteSpace(issuer);
         var validateAudience = !string.IsNullOrWhiteSpace(audience);
 

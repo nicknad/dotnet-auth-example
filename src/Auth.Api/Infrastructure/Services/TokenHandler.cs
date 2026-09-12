@@ -1,6 +1,7 @@
 using Auth.Api.Abstractions;
 using Auth.Api.Common;
 using Auth.Api.Common.Token;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -9,11 +10,9 @@ using System.Text;
 
 namespace Auth.Api.Infrastructure.Services;
 
-internal sealed class TokenHandler(IConfiguration configuration, IUserStorage userStorage, IAuthLogger logger, TimeProvider timeProvider, ICacheService cache) : ITokenHandler
+internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage userStorage, IAuthLogger logger, TimeProvider timeProvider, ICacheService cache) : ITokenHandler
 {
-    private string JWTIssuer => configuration["JWT:Issuer"] ?? throw new InvalidOperationException("JWT Issuer is not configured.");
-    private string JWTAudience => configuration["JWT:Audience"] ?? throw new InvalidOperationException("JWT Audience is not configured.");
-    private string JWTKey => configuration["JWT:Key"] ?? throw new InvalidOperationException("JWT Key is not configured.");
+    private JwtOptions Jwt => jwtOptions.Value;
 
     public async Task<TokenResult> ValidateLoginAndCreateTokenAsync(string email, string password) {
         logger.LogInformation("Login attempt for email {Email}", MaskEmail(email));
@@ -72,7 +71,7 @@ internal sealed class TokenHandler(IConfiguration configuration, IUserStorage us
     }
 
     internal async Task<(string Token, DateTime ExpiresAt)> GenerateJwtToken(ApplicationUser user) {
-        var keyString = JWTKey;
+        var keyString = Jwt.Key;
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -95,8 +94,8 @@ internal sealed class TokenHandler(IConfiguration configuration, IUserStorage us
         var expiresAt = timeProvider.GetUtcNow().AddMinutes(15).UtcDateTime;
 
         var token = new JwtSecurityToken(
-            issuer: JWTIssuer,
-            audience: JWTAudience,
+            issuer: Jwt.Issuer,
+            audience: Jwt.Audience,
             claims: claims,
             expires: expiresAt,
             signingCredentials: creds);

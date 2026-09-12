@@ -37,13 +37,21 @@ public sealed class LogoutTests : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
-    public async Task LogoutWithRevokeAllTokensReturnsOk() {
+    public async Task LogoutWithRevokeAllTokensInvalidatesAccessAndRefreshTokens() {
         var email = "revokealltest@test.com";
-        var (_, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Revoke", "All");
+        var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Revoke", "All");
+        var refreshToken = await TestHelpers.GetRefreshTokenAsync(_client, email, "Password123!");
 
         var response = await TestHelpers.LogoutAsync(_client, accessToken, revokeAllTokens: true);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var getRequest = TestHelpers.CreateAuthenticatedGetRequest(UriProvider.GetUserUrl(userId), accessToken);
+        var getResponse = await _client.SendAsync(getRequest, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Unauthorized, getResponse.StatusCode);
+
+        var refreshResponse = await TestHelpers.RefreshTokenAsync(_client, refreshToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
     }
 
     [Fact]
@@ -60,15 +68,19 @@ public sealed class LogoutTests : IClassFixture<IntegrationTestFixture>
     public async Task LogoutClearsRefreshToken() {
         var email = "cleartokentest@test.com";
         var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Clear", "Token");
+        var refreshToken = await TestHelpers.GetRefreshTokenAsync(_client, email, "Password123!");
 
         // First logout should succeed
         var logoutResponse = await TestHelpers.LogoutAsync(_client, accessToken, revokeAllTokens: false);
         Assert.Equal(HttpStatusCode.OK, logoutResponse.StatusCode);
 
+        // The refresh token must be unusable after logout
+        var refreshResponse = await TestHelpers.RefreshTokenAsync(_client, refreshToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
+
         // The current access token should still work (until expiration)
         using var request = TestHelpers.CreateAuthenticatedGetRequest(UriProvider.GetUserUrl(userId), accessToken);
         var getResponse = await _client.SendAsync(request, CancellationToken.None);
-        // Access token is still valid, so this should succeed
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
     }
 
@@ -81,13 +93,8 @@ public sealed class LogoutTests : IClassFixture<IntegrationTestFixture>
         var firstLogout = await TestHelpers.LogoutAsync(_client, accessToken, revokeAllTokens: false);
         Assert.Equal(HttpStatusCode.OK, firstLogout.StatusCode);
 
-        // Second logout with same token might still succeed or fail depending on implementation
-        // This tests idempotency
+        // Logout is idempotent while the access token is still valid
         var secondLogout = await TestHelpers.LogoutAsync(_client, accessToken, revokeAllTokens: false);
-        // Accept either OK or Unauthorized as valid
-        Assert.True(
-            secondLogout.StatusCode == HttpStatusCode.OK || 
-            secondLogout.StatusCode == HttpStatusCode.Unauthorized,
-            $"Expected OK or Unauthorized, got {secondLogout.StatusCode}");
+        Assert.Equal(HttpStatusCode.OK, secondLogout.StatusCode);
     }
 }

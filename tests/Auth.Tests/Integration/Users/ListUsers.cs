@@ -22,6 +22,7 @@ public sealed class ListUsers : IClassFixture<IntegrationTestFixture>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var users = await response.Content.ReadFromJsonAsync<List<GetUserResponse>>(CancellationToken.None);
         Assert.NotNull(users);
+        Assert.NotEmpty(users);
     }
 
     [Fact]
@@ -140,36 +141,43 @@ public sealed class ListUsers : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
-    public async Task ListUsersWithExcessivePageSizeReturnsSuccess() {
+    public async Task ListUsersWithExcessivePageSizeReturnsBadRequest() {
         var adminToken = await TestHelpers.GetAdminTokenAsync(_client);
         using var getRequest = TestHelpers.CreateAuthenticatedGetRequest(
             UriProvider.GetListUsersWithQueryParams(new(), 0, 10000),
+            adminToken);
+        var response = await _client.SendAsync(getRequest, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListUsersWithMaxPageSizeReturnsOk() {
+        var adminToken = await TestHelpers.GetAdminTokenAsync(_client);
+        using var getRequest = TestHelpers.CreateAuthenticatedGetRequest(
+            UriProvider.GetListUsersWithQueryParams(new(), 0, 50),
             adminToken);
         var response = await _client.SendAsync(getRequest, CancellationToken.None);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
-    public async Task ListUsersWithNegativePageNumberReturnsSuccess() {
+    public async Task ListUsersWithNegativePageNumberReturnsBadRequest() {
         var adminToken = await TestHelpers.GetAdminTokenAsync(_client);
         using var getRequest = TestHelpers.CreateAuthenticatedGetRequest(
             UriProvider.GetListUsersWithQueryParams(new(), -1, 10),
             adminToken);
         var response = await _client.SendAsync(getRequest, CancellationToken.None);
-        // Should either return BadRequest or reset to valid page
-        Assert.True(response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.OK);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task ListUsersWithNegativePageSizeReturnsSuccess() {
+    public async Task ListUsersWithNegativePageSizeReturnsBadRequest() {
         var adminToken = await TestHelpers.GetAdminTokenAsync(_client);
         using var getRequest = TestHelpers.CreateAuthenticatedGetRequest(
             UriProvider.GetListUsersWithQueryParams(new(), 0, -1),
             adminToken);
         var response = await _client.SendAsync(getRequest, CancellationToken.None);
-
-        // Should either return BadRequest or reset to valid page size
-        Assert.True(response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.OK);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -179,24 +187,18 @@ public sealed class ListUsers : IClassFixture<IntegrationTestFixture>
             UriProvider.GetListUsersWithQueryParams(new(), 0, 0),
             adminToken);
         var response = await _client.SendAsync(getRequest, CancellationToken.None);
-        Assert.True(response.StatusCode == HttpStatusCode.BadRequest || response.StatusCode == HttpStatusCode.OK);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task ListUsersWithVeryLongFilterValueReturnsResults() {
+    public async Task ListUsersWithVeryLongFilterValueReturnsBadRequest() {
         var adminToken = await TestHelpers.GetAdminTokenAsync(_client);
-        using var getRequest = TestHelpers.CreateAuthenticatedGetRequest(
-            UriProvider.GetListUsersWithQueryParams(new(), 0, 10000),
-            adminToken);
-        var response = await _client.SendAsync(getRequest, CancellationToken.None);
-
         var longFilterValue = new string('a', 500);
         using var filterRequest = TestHelpers.CreateAuthenticatedGetRequest(
             UriProvider.GetListUsersWithQueryParams(new() { ["name"] = longFilterValue }),
             adminToken);
         var filterResponse = await _client.SendAsync(filterRequest, CancellationToken.None);
-        // Long filter should either return empty results or be truncated/rejected
-        Assert.True(filterResponse.StatusCode == HttpStatusCode.OK || filterResponse.StatusCode == HttpStatusCode.BadRequest);
+        Assert.Equal(HttpStatusCode.BadRequest, filterResponse.StatusCode);
     }
 
     [Fact]

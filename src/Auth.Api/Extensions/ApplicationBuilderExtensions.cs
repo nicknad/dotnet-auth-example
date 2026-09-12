@@ -29,8 +29,7 @@ internal static class ApplicationBuilderExtensions
                     context.Response.ContentType = "application/json";
 
                     await context.Response.WriteAsJsonAsync(new {
-                        error = "Invalid request",
-                        detail = badRequestEx.Message
+                        error = "Invalid request"
                     });
 
                     return;

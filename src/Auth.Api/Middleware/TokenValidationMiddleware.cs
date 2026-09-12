@@ -31,7 +31,7 @@ internal sealed class TokenValidationMiddleware
 
         if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(tokenVersionClaim)) {
             logger.LogWarning("Token validation failed: missing userId or tokenVersion claims");
-            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
 

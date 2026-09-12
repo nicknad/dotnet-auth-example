@@ -35,7 +35,11 @@ internal static class LogoutEndpoint
                 return Results.Ok(new { message = "Logged out successfully" });
             }
 
-            return Results.Unauthorized();
+            if (result.Errors.Contains("User not found")) {
+                return Results.Unauthorized();
+            }
+
+            return Results.StatusCode(StatusCodes.Status500InternalServerError);
         })
         .WithName("Logout")
         .Accepts<LogoutRequest>("application/json")

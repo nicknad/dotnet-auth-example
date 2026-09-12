@@ -1,15 +1,6 @@
 using Auth.Api.Abstractions;
-using Auth.Api.Common;
 using Auth.Api.Common.Token;
-using Auth.Api.Infrastructure.Services;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Auth.Api.Features.Auth.Login;
 
@@ -25,8 +16,7 @@ internal static class LoginEndpoint
     public static void MapLogin(this IEndpointRouteBuilder app) {
         app.MapPost("/auth/login", async (
             [FromBody] LoginRequest request,
-            ITokenHandler tokenHandler,
-            ClaimsPrincipal currentUser) =>
+            ITokenHandler tokenHandler) =>
         {
             var email = request.Email;
             var tokenResult = await tokenHandler.ValidateLoginAndCreateTokenAsync(request.Email, request.Password);

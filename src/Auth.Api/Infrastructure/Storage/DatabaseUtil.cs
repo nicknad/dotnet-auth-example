@@ -12,6 +12,8 @@ internal static class DatabaseUtil
         using var scope = serviceProvider.CreateScope();
 
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseSeeder");
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         string[] roles = [Common.Constants.Roles.Admin, Common.Constants.Roles.User];
 
@@ -23,31 +25,38 @@ internal static class DatabaseUtil
 
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var adminEmail = "admin@example.com";
-        var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
+        var adminEmail = configuration["Seed:AdminEmail"];
+        var adminPassword = configuration["Seed:AdminPassword"];
 
-        if (existingAdmin == null) {
-            var adminUser = new ApplicationUser {
-                UserName = adminEmail,
-                Email = adminEmail,
-                FirstName = "Admin",
-                LastName = "User",
-                EmailConfirmed = true
-            };
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword)) {
+            logger.LogWarning("Seed:AdminEmail and Seed:AdminPassword are not configured; skipping admin account seeding.");
+        } else {
+            var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
 
-            var result = await userManager.CreateAsync(adminUser, "Admin123!");
-            if (!result.Succeeded) {
-                throw new InvalidOperationException(
-                    $"Admin creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            if (existingAdmin == null) {
+                var adminUser = new ApplicationUser {
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    FirstName = "Admin",
+                    LastName = "User",
+                    EmailConfirmed = true
+                };
+
+                var result = await userManager.CreateAsync(adminUser, adminPassword);
+                if (!result.Succeeded) {
+                    throw new InvalidOperationException(
+                        $"Admin creation failed: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                }
+
+                await userManager.AddToRoleAsync(adminUser, Common.Constants.Roles.Admin);
             }
-
-            await userManager.AddToRoleAsync(adminUser, Common.Constants.Roles.Admin);
         }
 
 
         const int userCount = 100;
 
         var existingEmails = await db.Users
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Select(u => u.Email!)
             .ToHashSetAsync();

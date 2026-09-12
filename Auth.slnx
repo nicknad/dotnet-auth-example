@@ -11,7 +11,8 @@
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
     <File Path="README.md" />
-    <File Path="Task.md" />
+    <File Path="architecture.md" />
+    <File Path="global.json" />
     <File Path="docker-compose.yaml" />
     <File Path="THIRD-PARTY-NOTICES.md" />
   </Folder>

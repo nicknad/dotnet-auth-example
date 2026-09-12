@@ -33,8 +33,7 @@ internal static class DeleteUserEndpoint
 
             if (result.Succeeded) {
                 // Invalidate the user's validation cache to prevent accessing with old tokens
-                var cacheKey = $"user:{id}:validation";
-                cache.Remove(cacheKey);
+                cache.Remove(Common.CacheKeys.UserValidation(id));
                 return Results.NoContent();
             }
 

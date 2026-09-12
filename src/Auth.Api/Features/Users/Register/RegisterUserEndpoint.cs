@@ -19,6 +19,7 @@ internal static class RegisterUserEndpoint
         app.MapPost("/users/register", async (
             [FromBody] RegisterUserRequest request,
             [FromServices] IUserStorage userStorage,
+            ICacheService cache,
             ClaimsPrincipal currentUser) =>
         {
             var existingUser = await userStorage.FindByEmailAsync(request.Email);
@@ -92,6 +93,9 @@ internal static class RegisterUserEndpoint
             if (!result.Succeeded) {
                 return Results.BadRequest(result.Errors);
             }
+
+            // A revived account must not be blocked by a stale cached "deleted/inactive" entry.
+            cache.Remove(Common.CacheKeys.UserValidation(existingUser.Id));
 
             return Results.Ok(new RegisterUserResponse(existingUser.Id, existingUser.Email!));
         })

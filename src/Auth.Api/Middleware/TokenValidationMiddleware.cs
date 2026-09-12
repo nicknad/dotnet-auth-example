@@ -35,7 +35,7 @@ internal sealed class TokenValidationMiddleware
             return;
         }
 
-        var cacheKey = $"user:{userId}:validation";
+        var cacheKey = CacheKeys.UserValidation(userId);
         if (!cache.TryRetrieve<UserCacheEntry>(cacheKey, out UserCacheEntry cacheEntry)) {
             var user = await userManager.FindByIdAsync(userId);
             if (user == null) {

@@ -72,8 +72,7 @@ internal static class PatchUserEndpoint
                 }
 
                 // Invalidate cache to force re-authentication with new token version
-                var cacheKey = $"user:{id}:validation";
-                cache.Remove(cacheKey);
+                cache.Remove(CacheKeys.UserValidation(id));
             }
 
             return Results.Ok(new GetUserResponse(

@@ -20,14 +20,14 @@ This project implements a minimal API with:
 - User registration and authentication
 - User listing with pagination (Admin role)
 - Editing and viewing on user profiles (user or admin)
-- Soft deletion of users (Admin role)
+- Soft deletion of users (owner or Admin role)
 - Token authentication ( chosen JWT-based )
 - Refresh tokens for session management
-- Token versioning for session invalidation to counter act JWT statelessness
+- Token versioning for session invalidation to counteract JWT statelessness
 - Role-based access control (user or admin)
 - DataAnnotations for validation
 - Rate limiting, limit for requests size and request header count for security
-- (POC) IP blocking middleware (POC, not fully implemented)
+- IP blocking middleware (POC, not fully implemented)
 
 Missing features that could be added in the future:
 - Password reset functionality
@@ -62,7 +62,7 @@ Api Versioning would be added via version folders (e.g., `Features/v1/Auth/Login
 
 ```
 root/
-  src/AuthApi/
+  src/Auth.Api/
     Abstractions/      - Interface definitions for abstractions (e.g., IUserStorage, ITokenService)
     Common/            - Shared utilities, constants, and DTOs
     Extensions/        - Extension methods for service registration, middleware, etc.
@@ -95,16 +95,16 @@ Given the timeframe the tests are focused on integration testing of the API endp
 
 ### Technology Stack
 
-Please check THIRD-PARTY-LICENSES.md for detailed license information on each dependency.
+Please check THIRD-PARTY-NOTICES.md for detailed license information on each dependency.
 
 - **.NET 10.0** - Latest LTS framework (MIT)
 - **Entity Framework Core 10** with SQLite (MIT)
 - **JWT Bearer** authentication / **Microsoft.IdentityModel** (MIT)
 - **xUnit v3** for testing (MIT)
 - **BenchmarkDotNet** for performance testing (MIT)
-- **NSubstitute** for mocking in tests (BSD-2-Clause)
+- **NSubstitute** for mocking in benchmarks (BSD-3-Clause)
 - **Serilog** for structured logging (Apache 2.0)
-- **SonarAnalyzers** for code quality (LGPL-3.0)
+- **SonarAnalyzers** for code quality (SONAR Source-Available License v1.0)
 - **StyleCop Analyzers** for coding conventions (MIT)
 - **AsyncFixer** for async code analysis (Apache 2.0)
 - **NetEscapades.AspNetCore.SecurityHeaders** Security headers middleware (MIT)
@@ -113,7 +113,7 @@ Please check THIRD-PARTY-LICENSES.md for detailed license information on each de
 
 #### Password Handling
 - Uses `Microsoft.AspNetCore.Identity` password hasher
-- Following RFC 8018: PBKDF2 with SHA256, 100000 iterations (configurable)
+- Follows RFC 8018: PBKDF2 with SHA256, 100,000 iterations (Identity default)
 
 #### JWT Tokens
 - Access tokens: 15-minute expiry
@@ -166,21 +166,31 @@ dotnet test --configuration Release --results-directory results/tests --logger "
 # Run benchmarks and save results to results/benchmarks/
 dotnet run --project tests/Auth.Benchmarks/Auth.Benchmarks.csproj --configuration Release -- results/benchmarks
 
+# Run an individual benchmark (BenchmarkDotNet arguments are forwarded)
+dotnet run --project tests/Auth.Benchmarks/Auth.Benchmarks.csproj --configuration Release -- results/benchmarks --filter *JwtCreationBench*
+
+# Run with Docker (JWT_KEY must be at least 32 characters)
+$env:JWT_KEY = "replace-with-a-32-plus-character-secret"
+docker compose up --build
+
 ```
----
+
+In the Development environment the database is migrated and seeded with `admin@example.com` / `Admin123!`; both values can be changed via `Seed:AdminEmail` and `Seed:AdminPassword`. Seeding is disabled by default outside Development, while database migrations always run on startup.---
 
 ## API Endpoints
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
 | POST | `/api/v1/auth/login` | User login | No |
-| POST | `/api/v1/auth/refresh` | Refresh token | Yes |
+| POST | `/api/v1/auth/refresh` | Refresh token | No |
 | POST | `/api/v1/auth/logout` | Logout | Yes |
 | POST | `/api/v1/users/register` | Register new user | No |
 | GET | `/api/v1/users` | List users | Yes (Admin) |
 | GET | `/api/v1/users/{id}` | Get user by ID | Yes |
 | PATCH | `/api/v1/users/{id}` | Update user | Yes |
-| DELETE | `/api/v1/users/{id}` | Soft delete user | Yes (Admin) |
+| DELETE | `/api/v1/users/{id}` | Soft delete user | Yes (owner or Admin) |
+
+`GET /api/v1/users` supports `page` (0-based), `pageSize` (1-50), `name`, `email` and `role` query parameters; non-admin callers always receive only their own profile.
 
 |Method| Endpoint | Description |
 |--------|----------|-------------|
@@ -194,7 +204,7 @@ dotnet run --project tests/Auth.Benchmarks/Auth.Benchmarks.csproj --configuratio
 ### Security
 - HTTPS enforcement with HSTS
 - additional logging and alerting on security events (e.g., multiple failed login attempts, suspicious IP activity)
-- additional protection against ddods attacks (e.g., IP reputation checks)
+- additional protection against DDoS attacks (e.g., IP reputation checks)
 - Multi-factor authentication (TOTP)
 - Account lockout after failed attempts
 - Notification of users on suspicious activity
@@ -220,7 +230,7 @@ dotnet run --project tests/Auth.Benchmarks/Auth.Benchmarks.csproj --configuratio
 - Environment-specific configuration
 
 
-## Mising Quality of Life Improvements
+## Missing Quality of Life Improvements
 - More comprehensive documentation (e.g., API docs, architecture diagrams)
 - Build scripts for easier setup and deployment
 - github workflows for automated testing and benchmarking on pull requests and commits

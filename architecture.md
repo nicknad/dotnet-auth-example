@@ -1,11 +1,13 @@
 # Architecture Overview
 
 ## Approach
-This solution uses a layered architecture for the Auth.Api service, with clear separation between API, Infrastructure, and Domain layers. This structure was chosen to maximize maintainability, testability, and scalability. Each layer is responsible for a specific concern:
+This solution uses a layered architecture for the Auth.Api service, with clear separation between API, Infrastructure, and shared common code. This structure was chosen to maximize maintainability, testability, and scalability. Each layer is responsible for a specific concern:
 
-- **API Layer**: Exposes HTTP endpoints for authentication, user management, and health checks.
-- **Infrastructure Layer**: Handles data access (Entity Framework Core), caching, logging (Serilog), and external integrations.
-- **Domain Layer**: Encapsulates business logic and domain entities, independent of infrastructure.
+- **API Layer** (`Features/`, `Middleware/`, `Extensions/`): Exposes HTTP endpoints for authentication, user management, and health checks, plus the middleware pipeline.
+- **Infrastructure Layer** (`Infrastructure/`, `Abstractions/`): Handles data access (Entity Framework Core), caching, token handling, and logging (Serilog) behind interfaces.
+- **Common Layer** (`Common/`): Shared DTOs, constants, validation attributes and result types used across the API.
+
+The project currently keeps business rules close to the API/Infrastructure boundary rather than in a separate Domain project; that refactoring can be introduced if the domain grows.
 
 This approach enables isolated testing, easier onboarding, and flexibility for future enhancements.
 
@@ -30,7 +32,7 @@ Layered architecture is a proven pattern in .NET for building robust, modular, a
 **Testing** uses:
 - xUnit (test framework)
 - Microsoft.AspNetCore.Mvc.Testing (integration testing)
-- NSubstitute (mocking)
+- NSubstitute (mocking, benchmarks only)
 - coverlet.collector (code coverage)
 - BenchmarkDotNet (benchmarks)
 
@@ -40,25 +42,25 @@ All dependencies are selected for their maturity, support, and .NET 10 compatibi
 
 ### Integration Tests
 - Located in `tests/Auth.Tests/Integration/`
-- Use `WebApplicationFactory` and custom fixtures to spin up the API with an in-memory database and real HTTP calls
+- Use `WebApplicationFactory` and custom fixtures to spin up the API in memory with an in-memory database
 - Cover all major endpoints: login, logout, refresh token, user registration, user management (CRUD), and edge cases (invalid input, authorization, etc.)
 - Test helpers abstract common flows (register, login, authenticated requests)
-- Database is seeded with roles and an admin user for role-based scenarios
-- Security and payload limits are tested (rate limiting, payload size, etc.)
+- Each fixture seeds roles and an admin user; production-style database seeding is opt-in via configuration
+- A controllable `TimeProvider` lets tests exercise token expiry without waiting
 
 ### Security Tests
 - Located in `tests/Auth.Tests/Security/`
-- Use a custom Kestrel host to test rate limiting, payload size, and security headers
-- Ensure the API enforces security policies under realistic conditions
+- Use a custom Kestrel host with the same middleware pipeline and routes as the application, plus WebApplicationFactory-based tests for rate limiting measures
+- Cover payload size limits, header limits, rate limiting and security headers
 
 ### Benchmarks
 - Located in `tests/Auth.Benchmarks/`
 - Use BenchmarkDotNet to measure performance of critical paths (JWT creation/validation, password hashing, claims extraction)
 
 ### Coverage
-- All endpoints, edge cases, and security boundaries are covered
-- Tests validate both positive and negative scenarios (success, unauthorized, forbidden, bad request, etc.)
-- Code coverage is collected with coverlet
+- Endpoint happy paths, negative cases and the main security boundaries are covered
+- Known gaps: health endpoint behaviour beyond a smoke check, CORS configuration, IP blocking (POC only) and OpenAPI output
+- Code coverage is collected with coverlet in CI
 
 ### Rationale
 This strategy ensures:

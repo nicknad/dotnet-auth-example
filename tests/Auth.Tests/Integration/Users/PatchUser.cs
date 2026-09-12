@@ -46,6 +46,25 @@ public sealed class PatchUser : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
+    public async Task PatchUserPasswordChangeInvalidatesExistingTokens() {
+        var email = "patchpwdrevoke@test.com";
+        var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Patch", "Revoke");
+        var refreshToken = await TestHelpers.GetRefreshTokenAsync(_client, email, "Password123!");
+
+        var patchRequest = new PatchUserRequest(null, null, "NewPassword1!");
+        using var patchMessage = TestHelpers.CreateAuthenticatedPatchRequest(UriProvider.GetUserUrl(userId), accessToken, patchRequest);
+        var response = await _client.SendAsync(patchMessage, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var refreshResponse = await TestHelpers.RefreshTokenAsync(_client, refreshToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
+
+        using var getRequest = TestHelpers.CreateAuthenticatedGetRequest(UriProvider.GetUserUrl(userId), accessToken);
+        var getResponse = await _client.SendAsync(getRequest, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Unauthorized, getResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task PatchUserOtherUserReturnsForbidden() {
         var email1 = "patchuser1@test.com";
         var email2 = "patchuser2@test.com";

@@ -46,6 +46,8 @@ internal static class RegisterUserEndpoint
                 existingUser.IsDeleted = false;
                 existingUser.IsActive = true;
                 existingUser.TokenVersion++;
+                existingUser.RefreshToken = null;
+                existingUser.RefreshTokenExpiresAt = null;
                 
                 // We need to reset password and roles
                 result = await userStorage.UpdateAsync(existingUser);

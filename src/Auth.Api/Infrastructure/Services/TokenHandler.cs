@@ -1,5 +1,6 @@
 using Auth.Api.Abstractions;
 using Auth.Api.Common;
+using Auth.Api.Common.Constants;
 using Auth.Api.Common.Token;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -40,9 +41,9 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
 
         (string? accessToken, DateTime expiresAt) = await GenerateJwtToken(user);
         string refreshToken = GenerateRefreshToken();
-        DateTime refreshTokenExpiry = timeProvider.GetUtcNow().AddDays(7).UtcDateTime;
+        DateTime refreshTokenExpiry = timeProvider.GetUtcNow().AddDays(JWT.RefreshTokenExpiresInDays).UtcDateTime;
 
-        user.RefreshToken = refreshToken;
+        user.RefreshToken = HashRefreshToken(refreshToken);
         user.RefreshTokenExpiresAt = refreshTokenExpiry;
         await userStorage.UpdateAsync(user);
 
@@ -91,7 +92,7 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        var expiresAt = timeProvider.GetUtcNow().AddMinutes(15).UtcDateTime;
+        var expiresAt = timeProvider.GetUtcNow().AddMinutes(JWT.AccessTokenExpiresInMinutes).UtcDateTime;
 
         var token = new JwtSecurityToken(
             issuer: Jwt.Issuer,
@@ -158,6 +159,16 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
     }
 #pragma warning restore CA1822 // Mark members as static
 
+    /// <summary>
+    /// Hashes a refresh token so that only a digest is stored at rest.
+    /// </summary>
+    /// <param name="refreshToken">The raw refresh token.</param>
+    /// <returns>The Base64 encoded SHA-256 hash.</returns>
+    private static string HashRefreshToken(string refreshToken) {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken));
+        return Convert.ToBase64String(hash);
+    }
+
     public async Task<TokenResult> RefreshTokenAsync(string refreshToken) {
 #pragma warning disable CA1031 // Do not catch general exception types
         try {
@@ -167,8 +178,8 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
                 return new TokenResult(TokenResultStatus.InvalidCredentials);
             }
 
-            // Find user by refresh token
-            var user = await userStorage.FindByRefreshTokenAsync(refreshToken);
+            // Find user by refresh token hash
+            var user = await userStorage.FindByRefreshTokenAsync(HashRefreshToken(refreshToken));
 
             if (user == null) {
                 logger.LogWarning("Refresh token failed: token not found");
@@ -199,10 +210,10 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
 
             // Generate new refresh token
             var newRefreshToken = GenerateRefreshToken();
-            var refreshTokenExpiry = timeProvider.GetUtcNow().AddDays(7).UtcDateTime;
+            var refreshTokenExpiry = timeProvider.GetUtcNow().AddDays(JWT.RefreshTokenExpiresInDays).UtcDateTime;
 
-            // Update user with new refresh token
-            user.RefreshToken = newRefreshToken;
+            // Update user with new refresh token hash
+            user.RefreshToken = HashRefreshToken(newRefreshToken);
             user.RefreshTokenExpiresAt = refreshTokenExpiry;
             var updateResult = await userStorage.UpdateAsync(user);
 

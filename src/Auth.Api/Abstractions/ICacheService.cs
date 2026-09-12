@@ -1,6 +1,3 @@
-using Microsoft.Extensions.Options;
-using NetEscapades.AspNetCore.SecurityHeaders.Headers.FeaturePolicy;
-
 namespace Auth.Api.Abstractions;
 
 /// <summary>

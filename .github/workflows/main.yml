@@ -1,4 +1,4 @@
-name: Build, Test and Analyze
+name: Build and Test
 on:
   push:
     branches:
@@ -12,19 +12,10 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    name: Build, test and analyze
+    name: Build and test
     runs-on: windows-latest
-    env:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
-      - name: Set up JDK 17
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
-        with:
-          java-version: 17
-          distribution: 'zulu' # Alternative distribution options are available.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
@@ -35,45 +26,10 @@ jobs:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
-      - name: Cache SonarQube Cloud packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~\sonar\cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-      - name: Cache SonarQube Cloud scanner
-        id: cache-sonar-scanner
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ runner.temp }}\scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
-      - name: Install SonarQube Cloud scanner
-        if: env.SONAR_TOKEN != '' && steps.cache-sonar-scanner.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          New-Item -Path ${{ runner.temp }}\scanner -ItemType Directory -Force
-          dotnet tool install dotnet-sonarscanner --version 11.3.0 --tool-path ${{ runner.temp }}\scanner
-      - name: Build, test and analyze
-        shell: powershell
-        run: |
-          $scanner = "${{ runner.temp }}\scanner\dotnet-sonarscanner"
-
-          if ($env:SONAR_TOKEN) {
-            & $scanner begin /k:"nicknad_dotnet-auth-example" /o:"nicknad" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.cs.opencover.reportsPaths="results/tests/**/coverage.opencover.xml"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-
-          dotnet build Auth.slnx --configuration Release
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-          dotnet test Auth.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory results/tests --logger "trx;LogFileName=results.trx"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-          if ($env:SONAR_TOKEN) {
-            & $scanner end /d:sonar.token="$env:SONAR_TOKEN"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+      - name: Build
+        run: dotnet build Auth.slnx --configuration Release
+      - name: Test
+        run: dotnet test Auth.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory results/tests --logger "trx;LogFileName=results.trx"
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -93,8 +93,8 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, Rol
         }
 
         // Cap page size
-        var take = Math.Min(parameters.PageSize ?? Common.Constants.Pagination.DefaultPageSize, Common.Constants.Pagination.MaxPageSize);
-        var skip = Math.Max((parameters.Page ?? 0) * take, 0);
+        var take = Math.Clamp(parameters.PageSize ?? Common.Constants.Pagination.DefaultPageSize, 1, Common.Constants.Pagination.MaxPageSize);
+        var skip = Math.Max(parameters.Page ?? 0, 0) * take;
 
         return await query
             .OrderBy(u => u.Id)

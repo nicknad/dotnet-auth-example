@@ -14,6 +14,11 @@ internal static class ListUsersEndpoint
             ClaimsPrincipal user,
             IUserStorage userStorage) =>
         {
+            var validationError = parameters.Validate();
+            if (validationError is not null) {
+                return Results.BadRequest(validationError);
+            }
+
             var isAdmin = user.IsInRole(Common.Constants.Roles.Admin);
             
             List<ApplicationUser> users;

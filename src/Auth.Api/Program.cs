@@ -18,6 +18,8 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.WithProperty("Application", "Auth.Api")
     .CreateLogger();
 
+Serilog.Core.Logger? authSerilog = null;
+
 try
 {
     Log.Information("Starting Auth API...");
@@ -28,9 +30,9 @@ try
             .Enrich.FromLogContext()
             .Enrich.WithProperty("Application", "Auth.Api"));
 
-    var authSerilog = new LoggerConfiguration()
+    authSerilog = new LoggerConfiguration()
         .MinimumLevel.Information()
-        .WriteTo.File("../../Logs/auth-log.txt", rollingInterval: RollingInterval.Day)
+        .WriteTo.File("logs/auth-log.txt", rollingInterval: RollingInterval.Day)
         .Enrich.FromLogContext()
         .Enrich.WithProperty("Application", "Auth.Api")
         .CreateLogger();
@@ -108,6 +110,11 @@ catch (Exception ex)
 }
 finally
 {
+    if (authSerilog is not null)
+    {
+        await authSerilog.DisposeAsync();
+    }
+
     await Log.CloseAndFlushAsync();
 }
 

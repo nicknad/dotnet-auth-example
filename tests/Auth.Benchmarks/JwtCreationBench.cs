@@ -2,7 +2,8 @@ using BenchmarkDotNet.Attributes;
 using Auth.Api.Infrastructure.Services;
 using Auth.Api.Abstractions;
 using Auth.Api.Common;
-using Microsoft.Extensions.Configuration;
+using Auth.Api.Common.Token;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace Auth.Benchmarks;
@@ -17,10 +18,11 @@ public class JwtCreationBench
 
     [GlobalSetup]
     public void Setup() {
-        var config = Substitute.For<IConfiguration>();
-        config["JWT:Issuer"].Returns("test-issuer");
-        config["JWT:Audience"].Returns("test-audience");
-        config["JWT:Key"].Returns("super-secret-key-12345-super-secret-key-12345");
+        var options = Options.Create(new JwtOptions {
+            Issuer = "test-issuer",
+            Audience = "test-audience",
+            Key = "super-secret-key-12345-super-secret-key-12345",
+        });
 
         var userStorage = Substitute.For<IUserStorage>();
         userStorage.GetRolesByUserAsync(Arg.Any<ApplicationUser>()).Returns(Task.FromResult((IList<string>)new List<string> { "User" }));
@@ -28,7 +30,7 @@ public class JwtCreationBench
         var logger = Substitute.For<IAuthLogger>();
         var cache = Substitute.For<ICacheService>();
 
-        _handler = new Auth.Api.Infrastructure.Services.TokenHandler(config, userStorage, logger, TimeProvider.System, cache);
+        _handler = new Auth.Api.Infrastructure.Services.TokenHandler(options, userStorage, logger, TimeProvider.System, cache);
         _user = new ApplicationUser { Id = "user-1", Email = "test@example.com", TokenVersion = 1, IsActive = true };
     }
 

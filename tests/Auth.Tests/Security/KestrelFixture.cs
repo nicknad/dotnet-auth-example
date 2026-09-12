@@ -25,7 +25,10 @@ public sealed class KestrelFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var builder = WebApplication.CreateBuilder();
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = "Testing",
+        });
 
         // Configure Serilog for testing
         builder.Host.UseSerilog((ctx, lc) => lc

@@ -3,7 +3,8 @@ using BenchmarkDotNet.Attributes;
 using Auth.Api.Infrastructure.Services;
 using Auth.Api.Abstractions;
 using Auth.Api.Common;
-using Microsoft.Extensions.Configuration;
+using Auth.Api.Common.Token;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -26,10 +27,11 @@ public class ClaimsExtractionBench
         var issuer = "test-issuer";
         var audience = "test-audience";
 
-        var config = Substitute.For<IConfiguration>();
-        config["JWT:Issuer"].Returns(issuer);
-        config["JWT:Audience"].Returns(audience);
-        config["JWT:Key"].Returns(keyString);
+        var options = Options.Create(new JwtOptions {
+            Issuer = issuer,
+            Audience = audience,
+            Key = keyString,
+        });
 
         var userStorage = Substitute.For<IUserStorage>();
         userStorage.GetRolesByUserAsync(Arg.Any<ApplicationUser>()).Returns(Task.FromResult((IList<string>)new List<string> { "User" }));
@@ -37,7 +39,7 @@ public class ClaimsExtractionBench
         var logger = Substitute.For<IAuthLogger>();
         var cache = Substitute.For<ICacheService>();
 
-        var tokenHandler = new Auth.Api.Infrastructure.Services.TokenHandler(config, userStorage, logger, TimeProvider.System, cache);
+        var tokenHandler = new Auth.Api.Infrastructure.Services.TokenHandler(options, userStorage, logger, TimeProvider.System, cache);
         var user = new ApplicationUser { Id = "user-1", Email = "test@example.com", TokenVersion = 1, IsActive = true };
         
         var result = await tokenHandler.GenerateJwtToken(user);

@@ -139,8 +139,7 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
             }
 
             // Invalidate cache to prevent access with old tokens
-            var cacheKey = $"user:{userId}:validation";
-            cache.Remove(cacheKey);
+            cache.Remove(CacheKeys.UserValidation(userId));
 
             return AuthApiResult.Success;
         } catch (Exception ex) {
@@ -223,8 +222,7 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
             }
 
             // Invalidate cache to ensure fresh validation data is loaded on next request
-            var cacheKey = $"user:{user.Id}:validation";
-            cache.Remove(cacheKey);
+            cache.Remove(CacheKeys.UserValidation(user.Id));
 
             logger.LogInformation("Refresh token successful for user {UserId}", user.Id);
 

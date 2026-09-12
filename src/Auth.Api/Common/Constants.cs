@@ -6,11 +6,6 @@ internal static class JWT
     public const int RefreshTokenExpiresInDays = 7;
 }
 
-internal static class Cache
-{
-    public const string UserCacheEntryPrefix = "user_token:";
-}
-
 internal static class Roles
 {
     public const string Admin = "Admin";

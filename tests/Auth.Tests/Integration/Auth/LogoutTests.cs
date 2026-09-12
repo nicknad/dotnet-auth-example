@@ -22,6 +22,18 @@ public sealed class LogoutTests : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
+    public async Task LogoutWithoutBodyReturnsOk() {
+        var email = "logoutnobody@test.com";
+        var (_, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Logout", "NoBody");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, UriProvider.LogoutUrl);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        var response = await _client.SendAsync(request, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task LogoutWithoutAccessTokenReturnsUnauthorized() {
         var invalidToken = "invalid.access.token";
         var response = await TestHelpers.LogoutAsync(_client, invalidToken, revokeAllTokens: false);

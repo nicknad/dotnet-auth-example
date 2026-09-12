@@ -55,6 +55,8 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, App
         user.IsDeleted = true;
         user.TokenVersion++;
         user.IsActive = false;
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAt = null;
 
         return await UpdateAsync(user);
     }
@@ -108,6 +110,9 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, App
 
     public async Task<AuthApiResult> UpdatePasswordAsync(ApplicationUser user, string newPassword) {
         user.TokenVersion++;
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAt = null;
+
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         var resetResult = await userManager.ResetPasswordAsync(user, token, newPassword);
 

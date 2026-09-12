@@ -83,6 +83,20 @@ public sealed class DeleteUser : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
+    public async Task DeleteUserInvalidatesRefreshToken() {
+        var email = "deleterefresh@test.com";
+        var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Delete", "Refresh");
+        var refreshToken = await TestHelpers.GetRefreshTokenAsync(_client, email, "Password123!");
+
+        using var deleteRequest = TestHelpers.CreateAuthenticatedDeleteRequest(UriProvider.GetUserUrl(userId), accessToken);
+        var response = await _client.SendAsync(deleteRequest, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        var refreshResponse = await TestHelpers.RefreshTokenAsync(_client, refreshToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task DeleteUserUnauthenticatedReturnsUnauthorized() {
         using var deleteRequest = TestHelpers.CreateAuthenticatedDeleteRequest(UriProvider.GetUserUrl("some-id"), "");
         var response = await _client.SendAsync(deleteRequest, CancellationToken.None);

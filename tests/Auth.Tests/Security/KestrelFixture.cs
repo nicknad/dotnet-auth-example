@@ -23,6 +23,8 @@ public sealed class KestrelFixture : IAsyncLifetime
     public string BaseUrl { get; private set; } = default!;
 #pragma warning restore CA1056 // URI-like properties should not be strings
 
+    private WebApplication? _app;
+
     public async ValueTask InitializeAsync()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -48,6 +50,10 @@ public sealed class KestrelFixture : IAsyncLifetime
         builder.Services.AddJwtAuthentication(builder.Configuration, builder.Environment);
         builder.Services.AddAuthorization();
 
+        // CORS and security headers, matching the application pipeline
+        builder.Services.AddApplicationCors(builder.Configuration, builder.Environment);
+        builder.Services.AddApplicationSecurityHeaders();
+
         // Add rate limiting using extension method
         builder.Services.AddApplicationRateLimiting();
 
@@ -62,24 +68,16 @@ public sealed class KestrelFixture : IAsyncLifetime
 
         builder.WebHost.UseUrls("http://127.0.0.1:0");
 
-        var app = builder.Build();
-        await SeedTestDatabase(app);
+        _app = builder.Build();
+        await SeedTestDatabase(_app);
 
-        // Configure middleware pipeline
-        app.UseRateLimiter();
-        app.UseAuthentication();
-        app.UseAuthorization();
+        // Use the same middleware pipeline and routes as the real application
+        _app.UseApplicationPipeline();
+        _app.MapApplicationRoutes();
 
-        // Map API routes
-        var v1 = app.MapGroup("/api/v1");
-        v1.MapAuth();
-        v1.MapUsers();
-        v1.RequireRateLimiting("FixedWindowPolicy");
-        app.MapHealthEndpoints();
+        await _app.StartAsync();
 
-        await app.StartAsync();
-
-        BaseUrl = app.Urls.First();
+        BaseUrl = _app.Urls.First();
 
         Client = new HttpClient
         {
@@ -126,5 +124,11 @@ public sealed class KestrelFixture : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         Client.Dispose();
+
+        if (_app is not null)
+        {
+            await _app.StopAsync();
+            await _app.DisposeAsync();
+        }
     }
 }

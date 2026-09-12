@@ -9,6 +9,7 @@ internal static class UriProvider
     internal static Uri LogoutUrl => new Uri("/api/v1/auth/logout", UriKind.Relative);
     internal static Uri RegisterUrl => new Uri("/api/v1/users/register", UriKind.Relative);
     internal static Uri ListUsersUrl => new Uri("/api/v1/users", UriKind.Relative);
+    internal static Uri HealthUrl => new Uri("/health", UriKind.Relative);
     /// <summary>
     /// Returns the base URL with added query parameters
     /// </summary>

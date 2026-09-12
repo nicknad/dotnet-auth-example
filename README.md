@@ -27,11 +27,11 @@ This project implements a minimal API with:
 - Role-based access control (user or admin)
 - DataAnnotations for validation
 - Rate limiting, limit for requests size and request header count for security
+- Account lockout after repeated failed login attempts (5 attempts, 5 minutes)
 - IP blocking middleware (POC, not fully implemented)
 
 Missing features that could be added in the future:
 - Password reset functionality
-- Account lockout after multiple failed login attempts
 - Multi-factor authentication (MFA)
 
 ## Architecture
@@ -206,7 +206,6 @@ In the Development environment the database is migrated and seeded with `admin@e
 - additional logging and alerting on security events (e.g., multiple failed login attempts, suspicious IP activity)
 - additional protection against DDoS attacks (e.g., IP reputation checks)
 - Multi-factor authentication (TOTP)
-- Account lockout after failed attempts
 - Notification of users on suspicious activity
 - Notification of users on password changes or logins from new devices
 

@@ -8,7 +8,7 @@ namespace Auth.Api.Infrastructure.Storage;
 // Implementation of User Storage using Microsoft Identity framework.
 // This class can be expanded in the future to include additional methods for user management if needed.
 // ApplicationUser is still used as the user entity, but we can easily switch to a different implementation.
-internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext dbContext) : IUserStorage
+internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext dbContext) : IUserStorage
 {
     public async Task<AuthApiResult> AddRole(string userId, string role) {
         var user = await userManager.FindByIdAsync(userId);
@@ -26,7 +26,11 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, Rol
         return result.Succeeded ? AuthApiResult.Success : AuthApiResult.Failed(result.Errors.Select(e => e.Description));
     }
 
-    public Task<bool> CheckPasswordAsync(ApplicationUser user, string password) => userManager.CheckPasswordAsync(user, password);
+    public async Task<bool> CheckPasswordAsync(ApplicationUser user, string password) {
+        // SignInManager applies Identity's lockout policy on failed attempts.
+        var result = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+        return result.Succeeded;
+    }
 
     public async Task<AuthApiResult> CreateAsync(ApplicationUser user, string password, List<string> roles) {
         if (roles is null || roles.Count == 0) {

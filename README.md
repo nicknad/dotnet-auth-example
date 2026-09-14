@@ -227,11 +227,3 @@ In the Development environment the database is migrated and seeded with `admin@e
 ### Infrastructure
 - extensive CI/CD pipelines / github workflows for automated testing, benchmarking, and deployment
 - Environment-specific configuration
-
-
-## Missing Quality of Life Improvements
-- More comprehensive documentation (e.g., API docs, architecture diagrams)
-- Build scripts for easier setup and deployment
-- github workflows for automated testing and benchmarking on pull requests and commits
-- Test coverage reports and code quality metrics
-- Regression quality control with benchmarks and tests on every commit (automated)

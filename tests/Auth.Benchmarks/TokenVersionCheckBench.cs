@@ -64,7 +64,7 @@ public class TokenVersionCheckBench
 
         // Pre-fill cache for CacheHit benchmark
         var cacheKey = $"user:{_user.Id}:validation";
-        var cacheEntry = new UserCacheEntry(_user.TokenVersion, _user.IsActive);
+        var cacheEntry = new UserCacheEntry(_user.TokenVersion, _user.IsActive, _user.IsDeleted);
         _cache.TryRetrieve<UserCacheEntry>(cacheKey, out Arg.Any<UserCacheEntry>())
               .Returns(x => { x[1] = cacheEntry; return true; });
     }
@@ -93,7 +93,7 @@ public class TokenVersionCheckBench
         var user = await _userStorage.FindByIdAsync(userId!);
         if (user == null) return false;
 
-        var cacheEntry = new UserCacheEntry(user.TokenVersion, user.IsActive);
+        var cacheEntry = new UserCacheEntry(user.TokenVersion, user.IsActive, user.IsDeleted);
         // In real middleware, we would store it in cache here.
         
         return cacheEntry.TokenVersion.ToString() == tokenVersionClaim;

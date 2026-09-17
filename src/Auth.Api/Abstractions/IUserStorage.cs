@@ -29,6 +29,11 @@ internal interface IUserStorage
     Task<ApplicationUser?> FindByRefreshTokenAsync(string refreshToken);
 
     /// <summary>
+    /// Finds a user by their previous (rotated) refresh token hash for reuse detection.
+    /// </summary>
+    Task<ApplicationUser?> FindByPreviousRefreshTokenAsync(string refreshTokenHash);
+
+    /// <summary>
     /// Adds a role to the specified user.
     /// </summary>
     /// <param name="userId">The user's unique identifier.</param>
@@ -55,11 +60,18 @@ internal interface IUserStorage
 
     /// <summary>
     /// Checks if the provided password is valid for the specified user.
+    /// Applies lockout policy on failure (for login flows).
     /// </summary>
     /// <param name="user">The user to check.</param>
     /// <param name="password">The password to validate.</param>
     /// <returns>True if the password is valid; otherwise, false.</returns>
     Task<bool> CheckPasswordAsync(ApplicationUser user, string password);
+
+    /// <summary>
+    /// Verifies the current password without triggering lockout.
+    /// Use for sensitive operations (password change) to avoid account-DoS.
+    /// </summary>
+    Task<bool> VerifyPasswordAsync(ApplicationUser user, string password);
 
     /// <summary>
     /// Updates the specified user's information.

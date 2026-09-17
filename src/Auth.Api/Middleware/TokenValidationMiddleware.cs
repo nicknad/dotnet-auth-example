@@ -44,12 +44,12 @@ internal sealed class TokenValidationMiddleware
                 return;
             }
 
-            cacheEntry = new (user.TokenVersion, user.IsActive);
-            cache.Store<UserCacheEntry>(cacheKey, cacheEntry, TimeSpan.FromMinutes(5));
+            cacheEntry = new (user.TokenVersion, user.IsActive, user.IsDeleted);
+            cache.Store<UserCacheEntry>(cacheKey, cacheEntry, TimeSpan.FromMinutes(2));
         }
 
-        if (!cacheEntry.IsActive) {
-            logger.LogWarning("Token validation failed: user {UserId} is inactive", userId);
+        if (!cacheEntry.IsActive || cacheEntry.IsDeleted) {
+            logger.LogWarning("Token validation failed: user {UserId} is inactive or deleted", userId);
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }

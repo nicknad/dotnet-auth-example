@@ -90,14 +90,14 @@ public sealed class LogoutTests : IClassFixture<IntegrationTestFixture>
         var refreshResponse = await TestHelpers.RefreshTokenAsync(_client, refreshToken);
         Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
 
-        // The current access token should still work (until expiration)
+        // The current access token must also be revoked after logout
         using var request = TestHelpers.CreateAuthenticatedGetRequest(UriProvider.GetUserUrl(userId), accessToken);
         var getResponse = await _client.SendAsync(request, CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, getResponse.StatusCode);
     }
 
     [Fact]
-    public async Task LogoutMultipleTimesWithSameTokenSucceeds() {
+    public async Task LogoutMultipleTimesWithSameTokenFailsAfterRevocation() {
         var email = "multilogout@test.com";
         var (_, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Multi", "Logout");
 
@@ -105,8 +105,8 @@ public sealed class LogoutTests : IClassFixture<IntegrationTestFixture>
         var firstLogout = await TestHelpers.LogoutAsync(_client, accessToken, revokeAllTokens: false);
         Assert.Equal(HttpStatusCode.OK, firstLogout.StatusCode);
 
-        // Logout is idempotent while the access token is still valid
+        // Second logout with the revoked access token must be rejected
         var secondLogout = await TestHelpers.LogoutAsync(_client, accessToken, revokeAllTokens: false);
-        Assert.Equal(HttpStatusCode.OK, secondLogout.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, secondLogout.StatusCode);
     }
 }

@@ -11,7 +11,8 @@ public sealed record PatchUserRequest(
 #nullable enable
     [MinLength(1)][MaxLength(100)] string? FirstName,
     [MinLength(1)][MaxLength(100)] string? LastName,
-    [MinLength(8)][MaxLength(128)] string? Password) {
+    [MinLength(8)][MaxLength(128)] string? Password,
+    [MinLength(1)][MaxLength(128)] string? CurrentPassword = null) {
 
     public bool IsEmpty() => FirstName is null && LastName is null && Password is null;
 }

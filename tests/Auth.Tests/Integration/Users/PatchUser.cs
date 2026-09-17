@@ -35,7 +35,7 @@ public sealed class PatchUser : IClassFixture<IntegrationTestFixture>
         var email = "patchpwd@test.com";
         var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Patch", "Pwd");
 
-        var patchRequest = new PatchUserRequest(null, null, "NewPassword1!");
+        var patchRequest = new PatchUserRequest(null, null, "NewPassword1!", "Password123!");
         using var patchMessage = TestHelpers.CreateAuthenticatedPatchRequest(UriProvider.GetUserUrl(userId), accessToken, patchRequest);
         var response = await _client.SendAsync(patchMessage, CancellationToken.None);
 
@@ -46,12 +46,34 @@ public sealed class PatchUser : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
+    public async Task PatchUserPasswordChangeWithoutCurrentPasswordReturnsBadRequest() {
+        var email = "patchpwdnocurrent@test.com";
+        var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Patch", "NoCurrent");
+
+        var patchRequest = new PatchUserRequest(null, null, "NewPassword1!");
+        using var patchMessage = TestHelpers.CreateAuthenticatedPatchRequest(UriProvider.GetUserUrl(userId), accessToken, patchRequest);
+        var response = await _client.SendAsync(patchMessage, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatchUserPasswordChangeWithWrongCurrentPasswordReturnsBadRequest() {
+        var email = "patchpwdwrongcurrent@test.com";
+        var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Patch", "WrongCurrent");
+
+        var patchRequest = new PatchUserRequest(null, null, "NewPassword1!", "WrongPassword1!");
+        using var patchMessage = TestHelpers.CreateAuthenticatedPatchRequest(UriProvider.GetUserUrl(userId), accessToken, patchRequest);
+        var response = await _client.SendAsync(patchMessage, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PatchUserPasswordChangeInvalidatesExistingTokens() {
         var email = "patchpwdrevoke@test.com";
         var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "Patch", "Revoke");
         var refreshToken = await TestHelpers.GetRefreshTokenAsync(_client, email, "Password123!");
 
-        var patchRequest = new PatchUserRequest(null, null, "NewPassword1!");
+        var patchRequest = new PatchUserRequest(null, null, "NewPassword1!", "Password123!");
         using var patchMessage = TestHelpers.CreateAuthenticatedPatchRequest(UriProvider.GetUserUrl(userId), accessToken, patchRequest);
         var response = await _client.SendAsync(patchMessage, CancellationToken.None);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

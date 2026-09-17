@@ -373,3 +373,6 @@ MigrationBackup/
 FodyWeavers.xsd
 
 .ruff_cache
+
+# PackageGuard local cache (CI uses actions/cache instead; do not commit binaries)
+.packageguard/

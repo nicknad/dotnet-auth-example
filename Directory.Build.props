@@ -10,6 +10,17 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Authors>Nick</Authors>
 
+    <!-- NuGet Audit: native vulnerability gate (direct + transitive).
+         Level moderate = low advisories are not reported; moderate/high are warnings.
+         Only high (NU1903) / critical (NU1904) break restore: NU1901/NU1902 are
+         excluded from TreatWarningsAsErrors below. NU1900 (audit source unreachable)
+         intentionally still fails closed via TreatWarningsAsErrors. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>moderate</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902</WarningsNotAsErrors>
+
     <!-- Minimal necessary suppressions -->
     <!-- XML docs required but many internal types don't need them -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>

@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build, Test and Audit
 on:
   push:
     branches:
@@ -11,6 +11,67 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  audit:
+    name: Audit (vulnerabilities + policy + SBOM)
+    runs-on: windows-latest
+    env:
+      # Elevates PackageGuard past GitHub's unauthenticated rate limit (60 req/h)
+      # when resolving licenses / risk data.
+      GITHUB_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          global-json-file: global.json
+      - name: Cache NuGet packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+      - name: Cache PackageGuard data
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .packageguard
+          key: ${{ runner.os }}-packageguard-${{ hashFiles('packageguard.config.json', 'Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-packageguard-
+      # NuGetAudit (Directory.Build.props: NuGetAudit=true, Mode=all, Level=moderate)
+      # makes restore fail on high/critical advisories (NU1902 and below stay warnings).
+      # Direct + transitive are audited (.NET 10 default=all, pinned explicitly).
+      - name: Restore with NuGet audit
+        run: dotnet restore Auth.slnx
+      - name: Report vulnerable packages (direct + transitive)
+        run: dotnet package list --project Auth.slnx --vulnerable --include-transitive
+      - name: Save vulnerable packages report (JSON)
+        run: dotnet package list --project Auth.slnx --vulnerable --include-transitive --format json --output-version 1 > nuget-vulnerabilities.json
+      - name: Report deprecated packages (informational, does not fail)
+        run: dotnet package list --project Auth.slnx --deprecated
+        continue-on-error: true
+      - name: Install PackageGuard
+        run: dotnet tool install --global PackageGuard --version 2.6.0
+      # Policy gate (packageguard.config.json, auto-discovered next to Auth.slnx):
+      # allow MIT/Apache-2.0/BSD/ISC, deny GPL/AGPL copyleft. Exceptions, extend in config:
+      # - SonarAnalyzer.CSharp: build-only analyzer (PrivateAssets=all, not shipped)
+      #   under SONAR Source-Available License, not an SPDX license.
+      # - prerelease=true: StyleCop.Analyzers is pinned to a beta (1.2.0-beta.556);
+      #   flip to false once a stable analyzer is adopted.
+      - name: Check dependency policy with PackageGuard
+        run: packageguard --use-caching Auth.slnx
+      # Evidence SBOM (CycloneDX). --ignore-violations keeps artifact generation
+      # independent of the gate above so forensics survive a policy failure.
+      - name: Generate SBOM (CycloneDX)
+        if: always()
+        run: packageguard --use-caching --sbom cyclonedx --sbom-output sbom.cyclonedx.json --ignore-violations Auth.slnx
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: audit-reports
+          path: |
+            nuget-vulnerabilities.json
+            sbom.cyclonedx.json
+          if-no-files-found: warn
   build:
     name: Build and test
     runs-on: windows-latest
@@ -26,8 +87,10 @@ jobs:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('Directory.Packages.props', '**/*.csproj') }}
           restore-keys: ${{ runner.os }}-nuget-
+      - name: Restore
+        run: dotnet restore Auth.slnx
       - name: Build
-        run: dotnet build Auth.slnx --configuration Release
+        run: dotnet build Auth.slnx --configuration Release --no-restore
       - name: Test
         run: dotnet test Auth.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory results/tests --logger "trx;LogFileName=results.trx"
       - name: Upload test results

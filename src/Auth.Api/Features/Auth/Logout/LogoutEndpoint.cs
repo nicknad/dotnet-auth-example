@@ -1,7 +1,5 @@
 using Auth.Api.Abstractions;
-using Auth.Api.Common;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Security.Claims;
 
 namespace Auth.Api.Features.Auth.Logout;
@@ -16,8 +14,9 @@ internal static class LogoutEndpoint
     /// </summary>
     /// <param name="app">The endpoint route builder.</param>
     public static void MapLogout(this IEndpointRouteBuilder app) {
+        // Note: the request body (LogoutRequest.RevokeAllTokens) is accepted for
+        // wire compatibility but ignored: logout always revokes all tokens.
         app.MapPost("/auth/logout", async (
-            [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] LogoutRequest? request,
             ClaimsPrincipal user,
             [FromServices] ITokenHandler tokenHandler) =>
         {
@@ -28,8 +27,7 @@ internal static class LogoutEndpoint
                 return Results.Unauthorized();
             }
 
-            var revokeAllTokens = request?.RevokeAllTokens ?? false;
-            var result = await tokenHandler.LogoutAsync(userId, revokeAllTokens).ConfigureAwait(false);
+            var result = await tokenHandler.LogoutAsync(userId).ConfigureAwait(false);
 
             if (result.Succeeded) {
                 return Results.Ok(new { message = "Logged out successfully" });
@@ -42,6 +40,7 @@ internal static class LogoutEndpoint
             return Results.StatusCode(StatusCodes.Status500InternalServerError);
         })
         .WithName("Logout")
+        .RequireAuthorization()
         .Accepts<LogoutRequest>("application/json")
         .Produces((int)System.Net.HttpStatusCode.OK)
         .Produces((int)System.Net.HttpStatusCode.Unauthorized);

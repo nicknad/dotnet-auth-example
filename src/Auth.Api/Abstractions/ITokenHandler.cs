@@ -16,12 +16,11 @@ internal interface ITokenHandler
     Task<TokenResult> ValidateLoginAndCreateTokenAsync(string email, string password);
 
     /// <summary>
-    /// Logs out a user by clearing refresh tokens and optionally revoking all tokens.
+    /// Logs out a user by revoking access tokens (token version bump) and clearing refresh tokens.
     /// </summary>
     /// <param name="userId">The user's unique identifier.</param>
-    /// <param name="revokeAllTokens">If true, revokes all tokens and disables the user; otherwise, only clears the refresh token.</param>
     /// <returns>An AuthApiResult indicating success or failure with any associated errors.</returns>
-    Task<AuthApiResult> LogoutAsync(string userId, bool revokeAllTokens);
+    Task<AuthApiResult> LogoutAsync(string userId);
 
     /// <summary>
     /// Refreshes an access token using a valid refresh token.

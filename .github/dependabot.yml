@@ -1,0 +1,78 @@
+# Dependabot version updates. Security updates run regardless of this file.
+# Every PR targets the default branch (development) and therefore goes through
+# the full CI gates: NuGet Audit (high/critical fail restore) + PackageGuard
+# license/ban policy + SBOM. A dependency that violates policy fails its own PR.
+version: 2
+updates:
+  # Centrally managed via Directory.Packages.props; Dependabot updates versions there.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    groups:
+      # Batch low-risk updates; majors stay individual for isolated review.
+      nuget-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "chore"
+    labels:
+      - "dependencies"
+
+  # Actions are SHA-pinned in .github/workflows; Dependabot bumps SHA + version comment.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "chore"
+    labels:
+      - "dependencies"
+
+  # Base images in src/Auth.Api/Dockerfile (mcr.microsoft.com/dotnet).
+  - package-ecosystem: "docker"
+    directory: "/src/Auth.Api"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+    labels:
+      - "dependencies"
+
+  # SDK pin in global.json (rollForward already allows latestMinor on dev machines;
+  # this keeps the pinned floor current).
+  - package-ecosystem: "dotnet-sdk"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+    labels:
+      - "dependencies"

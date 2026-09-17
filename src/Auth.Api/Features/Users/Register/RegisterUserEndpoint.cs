@@ -1,6 +1,5 @@
 using Auth.Api.Abstractions;
 using Auth.Api.Common;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -19,13 +18,15 @@ internal static class RegisterUserEndpoint
         app.MapPost("/users/register", async (
             [FromBody] RegisterUserRequest request,
             [FromServices] IUserStorage userStorage,
-            ICacheService cache,
             ClaimsPrincipal currentUser) =>
         {
             var existingUser = await userStorage.FindByEmailAsync(request.Email);
-            
-            // Check if email is already taken by a NON-DELETED user
-            if (existingUser != null && !existingUser.IsDeleted) {
+
+            // Tombstone deleted emails: never auto-revive on anonymous register.
+            // Otherwise anyone could claim a deleted address without ownership proof
+            // (no email verification) and inherit the same user Id.
+            // Restoration requires an explicit admin/support flow with verification.
+            if (existingUser != null) {
                 return Results.BadRequest("Email already registered");
             }
 
@@ -40,45 +41,7 @@ internal static class RegisterUserEndpoint
             }
 
             AuthApiResult result;
-            if (existingUser != null && existingUser.IsDeleted) {
-                // "Revive" or replace the deleted user
-                existingUser.FirstName = request.FirstName;
-                existingUser.LastName = request.LastName;
-                existingUser.IsDeleted = false;
-                existingUser.IsActive = true;
-                existingUser.TokenVersion++;
-                existingUser.RefreshToken = null;
-                existingUser.RefreshTokenExpiresAt = null;
-                
-                // We need to reset password and roles
-                result = await userStorage.UpdateAsync(existingUser);
-
-                if (result.Succeeded) {
-                    result = await userStorage.UpdatePasswordAsync(existingUser, request.Password);
-                }
-
-                if (result.Succeeded) {
-                    // Reset roles: remove all and add new
-                    var currentRoles = await userStorage.GetRolesByUserAsync(existingUser);
-                    foreach (var role in currentRoles) {
-                        result = await userStorage.RemoveRole(existingUser.Id, role);
-
-                        if (!result.Succeeded) {
-                            break;
-                        }
-                    }
-                }
-
-                if (result.Succeeded) {
-                    foreach (var role in roles) {
-                        result = await userStorage.AddRole(existingUser.Id, role);
-
-                        if (!result.Succeeded) {
-                            break;
-                        }
-                    }
-                }
-            } else {
+            {
                 var user = new ApplicationUser {
                     UserName = request.Email,
                     Email = request.Email,
@@ -93,9 +56,6 @@ internal static class RegisterUserEndpoint
             if (!result.Succeeded) {
                 return Results.BadRequest(result.Errors);
             }
-
-            // A revived account must not be blocked by a stale cached "deleted/inactive" entry.
-            cache.Remove(Common.CacheKeys.UserValidation(existingUser.Id));
 
             return Results.Ok(new RegisterUserResponse(existingUser.Id, existingUser.Email!));
         })

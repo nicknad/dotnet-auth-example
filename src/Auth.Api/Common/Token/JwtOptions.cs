@@ -11,11 +11,6 @@ internal sealed class JwtOptions
     public const string SectionName = "Jwt";
 
     /// <summary>
-    /// Insecure fallback key used only in Development and Testing when no key is configured.
-    /// </summary>
-    public const string DevelopmentKey = "dev-temporary-insecure-key-please-configure-this-in-production";
-
-    /// <summary>
     /// Gets or sets the symmetric signing key.
     /// </summary>
     public string Key { get; set; } = string.Empty;

@@ -9,6 +9,7 @@ using Auth.Api.Infrastructure.Storage;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 
@@ -40,6 +41,13 @@ public sealed class KestrelFixture : IAsyncLifetime
         // Configure Kestrel limits
         builder.ConfigureKestrelLimits();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            { "Jwt:Key", "test-only-jwt-signing-key-32-plus-characters-0123456789" },
+            { "Jwt:Issuer", "Auth.Api" },
+            { "Jwt:Audience", "Auth.Api" },
+            { "Cors:AllowedOrigins", "http://localhost" }
+        });
 
         // Use extension methods for DI setup
         builder.Services.AddTestDatabase();
@@ -47,7 +55,7 @@ public sealed class KestrelFixture : IAsyncLifetime
         builder.Services.AddCoreServices();  // This includes ITokenHandler, ICacheService, IpBlockingService, etc.
 
         // Authentication & JWT setup using extension method
-        builder.Services.AddJwtAuthentication(builder.Configuration, builder.Environment);
+        builder.Services.AddJwtAuthentication(builder.Configuration);
         builder.Services.AddAuthorization();
 
         // CORS and security headers, matching the application pipeline

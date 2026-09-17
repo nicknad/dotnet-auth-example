@@ -77,6 +77,12 @@ namespace Auth.Api.Migrations;
                   b.Property<DateTime?>("RefreshTokenExpiresAt")
                       .HasColumnType("TEXT");
 
+                  b.Property<string>("PreviousRefreshToken")
+                      .HasColumnType("TEXT");
+
+                  b.Property<DateTime?>("PreviousRefreshTokenExpiresAt")
+                      .HasColumnType("TEXT");
+
                   b.Property<string>("SecurityStamp")
                       .HasColumnType("TEXT");
 

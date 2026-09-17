@@ -92,7 +92,7 @@ jobs:
       - name: Build
         run: dotnet build Auth.slnx --configuration Release --no-restore
       - name: Test
-        run: dotnet test Auth.slnx --configuration Release --no-build --collect:"XPlat Code Coverage" --results-directory results/tests --logger "trx;LogFileName=results.trx"
+        run: dotnet test --solution Auth.slnx --configuration Release --no-build --results-directory results/tests --coverage --coverage-output-format cobertura --report-trx --report-trx-filename results.trx
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

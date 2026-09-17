@@ -43,11 +43,27 @@ internal static class ApplicationBuilderExtensions
         });
         app.UseStatusCodePages();
 
-        // Use forwarded headers so RemoteIpAddress and scheme are correct when behind proxies
-        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        // Trust X-Forwarded-* only from loopback (default) plus explicitly configured
+        // proxies. This prevents spoofing RemoteIpAddress to bypass per-IP rate
+        // limiting / IP blocking or exhaust limiter partitions.
+        // Configure via ForwardedHeaders:KnownProxies="10.0.0.1,172.18.0.1" and
+        // ForwardedHeaders:KnownNetworks="10.0.0.0/8,172.16.0.0/12".
+        var forwardedOptions = new ForwardedHeadersOptions
         {
-            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-        });
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+            ForwardLimit = 1,
+        };
+        foreach (var proxy in app.Configuration.GetValue<string>("ForwardedHeaders:KnownProxies")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? []) {
+            if (System.Net.IPAddress.TryParse(proxy, out var ip)) {
+                forwardedOptions.KnownProxies.Add(ip);
+            }
+        }
+        foreach (var network in app.Configuration.GetValue<string>("ForwardedHeaders:KnownNetworks")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? []) {
+            if (System.Net.IPNetwork.TryParse(network, out var ipNetwork)) {
+                forwardedOptions.KnownIPNetworks.Add(ipNetwork);
+            }
+        }
+        app.UseForwardedHeaders(forwardedOptions);
 
         if (!app.Environment.IsDevelopment())
         {

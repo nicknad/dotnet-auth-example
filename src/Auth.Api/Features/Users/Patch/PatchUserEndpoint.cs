@@ -43,11 +43,26 @@ internal static class PatchUserEndpoint
                 return Results.NotFound();
             }
 
+            var isSelf = string.Equals(currentUserId, id, StringComparison.Ordinal);
             if (!string.IsNullOrEmpty(request.Password)) {
                 var passwordValidatorResult = PasswordValidator.Validate(request.Password.AsSpan());
                 if (!passwordValidatorResult.IsValid) {
                     return Results.BadRequest(passwordValidatorResult.Error);
                 }
+
+                if (isSelf) {
+                    if (string.IsNullOrEmpty(request.CurrentPassword)) {
+                        return Results.BadRequest("Current password is required to change password.");
+                    }
+
+                    var currentOk = await userStorage.VerifyPasswordAsync(targetUser, request.CurrentPassword);
+                    if (!currentOk) {
+                        return Results.BadRequest("Current password is incorrect.");
+                    }
+                }
+            }
+            else if (!string.IsNullOrEmpty(request.CurrentPassword)) {
+                return Results.BadRequest("CurrentPassword must only be sent together with Password.");
             }
 
             if (!string.IsNullOrEmpty(request.FirstName)) {

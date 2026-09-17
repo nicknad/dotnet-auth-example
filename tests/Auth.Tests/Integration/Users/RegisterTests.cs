@@ -163,7 +163,7 @@ public sealed class RegisterTests : IClassFixture<IntegrationTestFixture>
     }
 
     [Fact]
-    public async Task RegisterDeletedUserRevivesAccount() {
+    public async Task RegisterDeletedEmailStaysReserved() {
         var email = "revive@test.com";
         var (userId, accessToken) = await TestHelpers.RegisterAndLoginAsync(_client, email, "First", "Last");
 
@@ -172,15 +172,8 @@ public sealed class RegisterTests : IClassFixture<IntegrationTestFixture>
         var deleteResponse = await _client.SendAsync(deleteRequest, CancellationToken.None);
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
-        // Re-register with the same email
+        // Re-register with the same email must NOT revive/take over the account
         var response = await TestHelpers.RegisterAsync(_client, email, "NewPassword123!", "NewPassword123!", "Revived", "User");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<RegisterUserResponse>(CancellationToken.None);
-        Assert.NotNull(result);
-        Assert.Equal(userId, result.Id); // Should be the same ID
-
-        // Verify can login with new password
-        var loginToken = await TestHelpers.LoginAndGetTokenAsync(_client, email, "NewPassword123!");
-        Assert.NotNull(loginToken);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

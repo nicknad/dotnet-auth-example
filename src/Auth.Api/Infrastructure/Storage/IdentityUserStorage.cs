@@ -32,6 +32,11 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, Sig
         return result.Succeeded;
     }
 
+    public Task<bool> VerifyPasswordAsync(ApplicationUser user, string password) {
+        // No lockout: used for re-authentication on sensitive operations.
+        return userManager.CheckPasswordAsync(user, password);
+    }
+
     public async Task<AuthApiResult> CreateAsync(ApplicationUser user, string password, List<string> roles) {
         if (roles is null || roles.Count == 0) {
             return AuthApiResult.Failed("At least one role must be assigned to the user");
@@ -67,6 +72,7 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, Sig
     }
     public Task<ApplicationUser?> FindByIdAsync(string userId) => userManager.FindByIdAsync(userId);
     public Task<ApplicationUser?> FindByRefreshTokenAsync(string refreshToken) => userManager.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+    public Task<ApplicationUser?> FindByPreviousRefreshTokenAsync(string refreshTokenHash) => userManager.Users.FirstOrDefaultAsync(u => u.PreviousRefreshToken == refreshTokenHash);
     public async Task<AuthApiResult> DeleteAsync(string userId) {
         var user = await userManager.FindByIdAsync(userId);
         if (user == null) {
@@ -78,6 +84,8 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, Sig
         user.IsActive = false;
         user.RefreshToken = null;
         user.RefreshTokenExpiresAt = null;
+        user.PreviousRefreshToken = null;
+        user.PreviousRefreshTokenExpiresAt = null;
 
         return await UpdateAsync(user);
     }
@@ -133,6 +141,8 @@ internal class IdentityUserStorage(UserManager<ApplicationUser> userManager, Sig
         user.TokenVersion++;
         user.RefreshToken = null;
         user.RefreshTokenExpiresAt = null;
+        user.PreviousRefreshToken = null;
+        user.PreviousRefreshTokenExpiresAt = null;
 
         var token = await userManager.GeneratePasswordResetTokenAsync(user);
         var resetResult = await userManager.ResetPasswordAsync(user, token, newPassword);

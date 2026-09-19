@@ -132,38 +132,30 @@ internal static class ServiceCollectionExtensions
     /// <summary>
     /// Configures JWT authentication with settings from configuration.
     /// </summary>
-    internal static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
+    internal static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
-        ArgumentNullException.ThrowIfNull(environment);
 
-        var allowInsecureDefaults = environment.IsDevelopment() || environment.IsEnvironment("Testing");
         var jwtSettings = configuration.GetSection(JwtOptions.SectionName);
 
         var keyString = jwtSettings["Key"];
         if (string.IsNullOrWhiteSpace(keyString))
         {
-            if (!allowInsecureDefaults)
-            {
-                throw new InvalidOperationException("Jwt:Key must be configured in non-development environments.");
-            }
-
-            Log.Warning("Jwt:Key is not configured. Falling back to an insecure development key. Do not use this in production.");
-            keyString = JwtOptions.DevelopmentKey;
+            throw new InvalidOperationException("Jwt:Key must be configured (32+ byte secret via Jwt:Key / JWT_KEY).");
         }
 
-        if (Encoding.UTF8.GetByteCount(keyString) < 32 && !allowInsecureDefaults)
+        if (Encoding.UTF8.GetByteCount(keyString) < 32)
         {
-            throw new InvalidOperationException("Jwt:Key must be at least 32 bytes long for production environments.");
+            throw new InvalidOperationException("Jwt:Key must be at least 32 bytes long.");
         }
 
         var issuer = jwtSettings["Issuer"];
         var audience = jwtSettings["Audience"];
 
-        if ((string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience)) && !allowInsecureDefaults)
+        if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience))
         {
-            throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured in non-development environments.");
+            throw new InvalidOperationException("Jwt:Issuer and Jwt:Audience must be configured.");
         }
 
         services.Configure<JwtOptions>(options =>
@@ -174,8 +166,6 @@ internal static class ServiceCollectionExtensions
         });
 
         var key = Encoding.UTF8.GetBytes(keyString);
-        var validateIssuer = !string.IsNullOrWhiteSpace(issuer);
-        var validateAudience = !string.IsNullOrWhiteSpace(audience);
 
         services.AddAuthentication(options =>
         {
@@ -186,8 +176,8 @@ internal static class ServiceCollectionExtensions
         {
             options.TokenValidationParameters = new TokenValidationParameters
             {
-                ValidateIssuer = validateIssuer,
-                ValidateAudience = validateAudience,
+                ValidateIssuer = true,
+                ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = issuer,
@@ -269,6 +259,10 @@ internal static class ServiceCollectionExtensions
 
             options.AddPolicy("FixedWindowPolicy", context =>
             {
+                // Keyed on trusted RemoteIpAddress only (ForwardedHeaders trusts loopback
+                // + configured proxies, ForwardLimit=1). Never key directly on the
+                // X-Forwarded-For header value, which would allow partition exhaustion
+                // and rate-limit bypass via spoofed values.
                 var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
                 return System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(remoteIp, _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions

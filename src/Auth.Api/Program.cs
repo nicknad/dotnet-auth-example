@@ -47,7 +47,7 @@ try
     builder.Services.AddApplicationDatabase(builder);
     builder.Services.AddApplicationIdentity();
     builder.Services.AddCoreServices();
-    builder.Services.AddJwtAuthentication(builder.Configuration, builder.Environment);
+    builder.Services.AddJwtAuthentication(builder.Configuration);
     builder.Services.AddApplicationCors(builder.Configuration, builder.Environment);
     builder.Services.AddApplicationSecurityHeaders();
     builder.Services.AddApplicationRateLimiting();

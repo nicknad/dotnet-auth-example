@@ -54,7 +54,7 @@ public sealed class DeleteUser : IClassFixture<IntegrationTestFixture>
 
     [Fact]
     public async Task DeleteUserAlreadyDeletedAsAdminReturnsNotFound() {
-        var email = "deletebyadmin@test.com";
+        var email = "deletebyadmin2@test.com";
         var userId = await TestHelpers.RegisterTestUserAsync(_client, email, "Delete", "ByAdmin");
 
         var adminToken = await TestHelpers.GetAdminTokenAsync(_client);

@@ -31,6 +31,10 @@ internal static class DatabaseUtil
         if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword)) {
             logger.LogWarning("Seed:AdminEmail and Seed:AdminPassword are not configured; skipping admin account seeding.");
         } else {
+            if (string.Equals(adminPassword, "Admin123!", StringComparison.Ordinal)) {
+                logger.LogWarning("Seed admin is using the default development password. Change Seed:AdminPassword immediately.");
+            }
+
             var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
 
             if (existingAdmin == null) {
@@ -52,66 +56,10 @@ internal static class DatabaseUtil
             }
         }
 
-
-        const int userCount = 100;
-
-        var existingEmails = await db.Users
-            .IgnoreQueryFilters()
-            .AsNoTracking()
-            .Select(u => u.Email!)
-            .ToHashSetAsync();
-
-        var newUsers = new List<ApplicationUser>(userCount);
-
-        for (int i = 1; i <= userCount; i++) {
-            var email = $"user{i}@example.com";
-
-            if (existingEmails.Contains(email))
-                continue;
-
-            newUsers.Add(new ApplicationUser {
-                UserName = email,
-                NormalizedUserName = email.ToUpperInvariant(),
-                Email = email,
-                NormalizedEmail = email.ToUpperInvariant(),
-                EmailConfirmed = true,
-                FirstName = $"User{i}",
-                LastName = "Seeded"
-            });
-        }
-
-        await db.Users.AddRangeAsync(newUsers);
-        await db.SaveChangesAsync();
-
-        var userRole = await db.Roles
-            .AsNoTracking()
-            .Where(r => r.Name == Common.Constants.Roles.User)
-            .Select(r => r.Id)
-            .SingleAsync();
-
-        var userIds = await db.Users
-            .AsNoTracking()
-            .Where(u => u.Email!.StartsWith("user"))
-            .Select(u => u.Id)
-            .ToListAsync();
-
-        var existingUserRolePairs = await db.UserRoles
-            .AsNoTracking()
-            .Where(ur => userIds.Contains(ur.UserId) && ur.RoleId == userRole)
-            .Select(ur => ur.UserId)
-            .ToHashSetAsync();
-
-        var userRoles = userIds
-            .Where(id => !existingUserRolePairs.Contains(id))
-            .Select(id => new IdentityUserRole<string> {
-                UserId = id,
-                RoleId = userRole
-            })
-            .ToList();
-
-        if (userRoles.Count > 0) {
-            await db.UserRoles.AddRangeAsync(userRoles);
-            await db.SaveChangesAsync();
-        }
+        // Bulk demo-user seeding removed: the previous implementation inserted 100
+        // passwordless rows directly via DbContext (no PasswordHash/SecurityStamp,
+        // bypassing UserManager validation) which squatted user1..100@example.com
+        // and produced login-incapable accounts. Create demo data explicitly via
+        // the API or a controlled seeder that uses UserManager with random passwords.
     }
 }

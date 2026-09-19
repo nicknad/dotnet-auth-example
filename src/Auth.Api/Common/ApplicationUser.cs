@@ -45,4 +45,14 @@ public sealed class ApplicationUser : IdentityUser
     /// Gets or sets the refresh token expiry time.
     /// </summary>
     public DateTime? RefreshTokenExpiresAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the previous refresh token hash, retained briefly for reuse detection.
+    /// </summary>
+    public string? PreviousRefreshToken { get; set; }
+
+    /// <summary>
+    /// Gets or sets the previous refresh token expiry time.
+    /// </summary>
+    public DateTime? PreviousRefreshTokenExpiresAt { get; set; }
 }

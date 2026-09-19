@@ -25,6 +25,11 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
     public async ValueTask InitializeAsync() {
         var dbId = Guid.NewGuid().ToString("N");
 
+        // Fail-closed JWT requires an explicit key. WebApplicationFactory's
+        // ConfigureAppConfiguration merge timing is version-sensitive, so set the
+        // test key via env (picked up by the default env provider) as well.
+        Environment.SetEnvironmentVariable("Jwt__Key", "test-only-jwt-signing-key-32-plus-characters-0123456789");
+
 #pragma warning disable CA2000 // Dispose objects before losing scope
         Factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
@@ -33,6 +38,8 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
 
                 builder.ConfigureAppConfiguration((context, config) =>
                 {
+                    // Note: Jwt:Key is supplied via environment (see below): extra
+                    // Jwt entries here would duplicate appsettings.json values.
                     config.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         { "NoRateLimit", "true" }

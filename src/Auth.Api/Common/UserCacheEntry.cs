@@ -6,4 +6,5 @@ namespace Auth.Api.Common;
 /// </summary>
 /// <param name="TokenVersion">The user's current token version</param>
 /// <param name="IsActive">Whether the user account is active</param>
-internal record struct UserCacheEntry(int TokenVersion, bool IsActive);
+/// <param name="IsDeleted">Whether the user is soft-deleted</param>
+internal record struct UserCacheEntry(int TokenVersion, bool IsActive, bool IsDeleted);

@@ -45,6 +45,8 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
 
         user.RefreshToken = HashRefreshToken(refreshToken);
         user.RefreshTokenExpiresAt = refreshTokenExpiry;
+        user.PreviousRefreshToken = null;
+        user.PreviousRefreshTokenExpiresAt = null;
         await userStorage.UpdateAsync(user);
 
         logger.LogInformation("Login successful for user {UserId}", user.Id);
@@ -105,7 +107,7 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
     }
 
 #pragma warning disable CA1031 // Do not catch general exception types
-    public async Task<AuthApiResult> LogoutAsync(string userId, bool revokeAllTokens) {
+    public async Task<AuthApiResult> LogoutAsync(string userId) {
         try {
             var user = await userStorage.FindByIdAsync(userId);
             if (user == null) {
@@ -113,30 +115,21 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
                 return AuthApiResult.Failed("User not found");
             }
 
-            if (revokeAllTokens) {
-                user.TokenVersion++;
-                user.RefreshToken = null;
-                user.RefreshTokenExpiresAt = null;
-                var updateResult = await userStorage.UpdateAsync(user);
+            // Bump TokenVersion so the current access token is revoked.
+            // Stateless JWTs cannot be revoked per-token without a denylist.
+            user.TokenVersion++;
+            user.RefreshToken = null;
+            user.RefreshTokenExpiresAt = null;
+            user.PreviousRefreshToken = null;
+            user.PreviousRefreshTokenExpiresAt = null;
+            var updateResult = await userStorage.UpdateAsync(user);
 
-                if (!updateResult.Succeeded) {
-                    logger.LogWarning("Logout failed: could not update user {UserId}", userId);
-                    return updateResult;
-                }
-
-                logger.LogInformation("All tokens revoked for user {UserId}", userId);
-            } else {
-                user.RefreshToken = null;
-                user.RefreshTokenExpiresAt = null;
-                var updateResult = await userStorage.UpdateAsync(user);
-
-                if (!updateResult.Succeeded) {
-                    logger.LogWarning("Logout failed: could not update user {UserId}", userId);
-                    return updateResult;
-                }
-
-                logger.LogInformation("Refresh token revoked for user {UserId}", userId);
+            if (!updateResult.Succeeded) {
+                logger.LogWarning("Logout failed: could not update user {UserId}", userId);
+                return updateResult;
             }
+
+            logger.LogInformation("All tokens revoked for user {UserId}", userId);
 
             // Invalidate cache to prevent access with old tokens
             cache.Remove(CacheKeys.UserValidation(userId));
@@ -177,10 +170,33 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
                 return new TokenResult(TokenResultStatus.InvalidCredentials);
             }
 
-            // Find user by refresh token hash
-            var user = await userStorage.FindByRefreshTokenAsync(HashRefreshToken(refreshToken));
+            var incomingHash = HashRefreshToken(refreshToken);
+
+            // Find user by current refresh token hash
+            var user = await userStorage.FindByRefreshTokenAsync(incomingHash);
 
             if (user == null) {
+                // Reuse detection: token matches a previously rotated token -> possible theft.
+                // Revoke the whole family so both attacker and victim sessions die.
+                var reuseUser = await userStorage.FindByPreviousRefreshTokenAsync(incomingHash);
+                if (reuseUser != null) {
+                    var now = timeProvider.GetUtcNow().UtcDateTime;
+                    if (reuseUser.PreviousRefreshTokenExpiresAt != null && reuseUser.PreviousRefreshTokenExpiresAt >= now) {
+                        logger.LogWarning("Refresh token reuse detected for user {UserId}; revoking all tokens", reuseUser.Id);
+                        reuseUser.TokenVersion++;
+                        reuseUser.RefreshToken = null;
+                        reuseUser.RefreshTokenExpiresAt = null;
+                        reuseUser.PreviousRefreshToken = null;
+                        reuseUser.PreviousRefreshTokenExpiresAt = null;
+                        await userStorage.UpdateAsync(reuseUser);
+                        cache.Remove(CacheKeys.UserValidation(reuseUser.Id));
+                    } else {
+                        logger.LogWarning("Refresh token failed: expired previous token presented");
+                    }
+
+                    return new TokenResult(TokenResultStatus.InvalidCredentials);
+                }
+
                 logger.LogWarning("Refresh token failed: token not found");
                 return new TokenResult(TokenResultStatus.InvalidCredentials);
             }
@@ -210,6 +226,10 @@ internal sealed class TokenHandler(IOptions<JwtOptions> jwtOptions, IUserStorage
             // Generate new refresh token
             var newRefreshToken = GenerateRefreshToken();
             var refreshTokenExpiry = timeProvider.GetUtcNow().AddDays(JWT.RefreshTokenExpiresInDays).UtcDateTime;
+
+            // Rotate: retain the old hash briefly for reuse detection
+            user.PreviousRefreshToken = user.RefreshToken;
+            user.PreviousRefreshTokenExpiresAt = user.RefreshTokenExpiresAt;
 
             // Update user with new refresh token hash
             user.RefreshToken = HashRefreshToken(newRefreshToken);
